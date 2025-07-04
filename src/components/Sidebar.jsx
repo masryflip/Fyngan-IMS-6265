@@ -4,11 +4,24 @@ import { motion } from 'framer-motion';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 
-const { FiHome, FiMapPin, FiGrid, FiPackage, FiTruck, FiEdit3, FiAlertTriangle, FiMenu, FiX, FiFileText } = FiIcons;
+const { 
+  FiHome, 
+  FiMapPin, 
+  FiGrid, 
+  FiPackage, 
+  FiTruck, 
+  FiEdit3, 
+  FiAlertTriangle, 
+  FiMenu, 
+  FiX, 
+  FiFileText,
+  FiBarChart3
+} = FiIcons;
 
 const menuItems = [
   { path: '/', icon: FiHome, label: 'Dashboard' },
   { path: '/stock-entry', icon: FiEdit3, label: 'Stock Entry' },
+  { path: '/stock-analysis', icon: FiBarChart3, label: 'Stock Analysis' },
   { path: '/locations', icon: FiMapPin, label: 'Locations' },
   { path: '/categories', icon: FiGrid, label: 'Categories' },
   { path: '/items', icon: FiPackage, label: 'Items' },
@@ -24,9 +37,9 @@ export default function Sidebar({ isOpen, onToggle }) {
     <>
       {/* Mobile overlay */}
       {isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={onToggle}
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden" 
+          onClick={onToggle} 
         />
       )}
 
@@ -42,11 +55,11 @@ export default function Sidebar({ isOpen, onToggle }) {
             <img 
               src="https://quest-media-storage-bucket.s3.us-east-2.amazonaws.com/1751614378200-logo%20circle.png" 
               alt="Fyngan Logo" 
-              className="w-8 h-8 rounded-full object-cover"
+              className="w-8 h-8 rounded-full object-cover" 
             />
             <h1 className="text-xl font-bold">Fyngan Inventory</h1>
           </div>
-          <button
+          <button 
             onClick={onToggle}
             className="lg:hidden p-1 rounded-md hover:bg-coffee-700"
           >
