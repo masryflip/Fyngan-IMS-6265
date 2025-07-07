@@ -20,15 +20,18 @@ function App() {
   return (
     <InventoryProvider>
       <Router>
-        <div className="flex h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 lg:flex">
+          {/* Sidebar */}
           <Sidebar 
             isOpen={isSidebarOpen} 
             onToggle={() => setIsSidebarOpen(!isSidebarOpen)} 
           />
-          
-          <div className="flex-1 flex flex-col overflow-hidden">
+
+          {/* Main content */}
+          <div className="flex-1 lg:flex lg:flex-col">
+            {/* Content area with proper padding for mobile menu button */}
             <motion.main 
-              className="flex-1 overflow-y-auto"
+              className="flex-1 pt-16 lg:pt-0 px-0 lg:px-0"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}

@@ -86,8 +86,8 @@ table tr:hover {
   }
 }
 
-/* Responsive design helpers */
-@media (max-width: 768px) {
+/* Mobile-specific styles */
+@media (max-width: 1023px) {
   .mobile-hidden {
     display: none;
   }
@@ -96,8 +96,123 @@ table tr:hover {
     font-size: 0.875rem;
   }
   
-  .sidebar {
+  /* Ensure content doesn't overlap mobile menu button */
+  .content-area {
+    padding-top: 4rem;
+  }
+  
+  /* Mobile menu button positioning */
+  .mobile-menu-button {
     position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 30;
+  }
+  
+  /* Sidebar overlay */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+  }
+  
+  /* Sidebar positioning */
+  .sidebar-mobile {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 16rem;
     z-index: 50;
   }
+}
+
+/* Desktop styles */
+@media (min-width: 1024px) {
+  .sidebar-desktop {
+    position: relative;
+    width: 16rem;
+    flex-shrink: 0;
+  }
+  
+  .content-desktop {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* Prevent horizontal scrolling */
+html, body {
+  overflow-x: hidden;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Better touch targets for mobile */
+@media (max-width: 768px) {
+  button, 
+  a, 
+  input[type="button"], 
+  input[type="submit"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Larger touch areas for navigation */
+  nav a {
+    padding: 0.75rem 1rem;
+    margin: 0.25rem 0;
+  }
+  
+  /* Better spacing for mobile forms */
+  .form-mobile input,
+  .form-mobile select,
+  .form-mobile textarea {
+    padding: 0.75rem;
+    font-size: 1rem;
+  }
+}
+
+/* Loading states */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Better focus indicators for accessibility */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #bf9f94;
+  outline-offset: 2px;
+}
+
+/* Improve text contrast */
+.text-contrast {
+  color: #1f2937;
+}
+
+/* Better error states */
+.error-state {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+}
+
+.success-state {
+  border-color: #10b981;
+  background-color: #f0fdf4;
 }
