@@ -8,7 +8,16 @@ import SafeIcon from '../common/SafeIcon';
 const { FiPackage, FiMapPin, FiAlertTriangle, FiTrendingUp, FiRefreshCw } = FiIcons;
 
 export default function Dashboard() {
-  const { items, locations, stockLevels, getStockAlerts, getTotalStock, formatQuantity, isLoading } = useInventory();
+  const { 
+    items, 
+    locations, 
+    stockLevels, 
+    getStockAlerts, 
+    getTotalStock, 
+    formatQuantity, 
+    isLoading,
+    error 
+  } = useInventory();
 
   const stats = useMemo(() => {
     const alerts = getStockAlerts();
@@ -35,7 +44,7 @@ export default function Dashboard() {
           stock: stock ? parseFloat(stock.quantity) : 0
         };
       }).filter(loc => loc.stock > 0);
-
+      
       return {
         ...item,
         totalStock,
@@ -63,6 +72,20 @@ export default function Dashboard() {
           <div className="text-center">
             <SafeIcon icon={FiRefreshCw} className="animate-spin text-4xl text-coffee-600 mb-4" />
             <p className="text-gray-600">Loading dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <SafeIcon icon={FiAlertTriangle} className="text-red-500 text-4xl mb-4" />
+            <p className="text-red-600 mb-2">Error loading dashboard</p>
+            <p className="text-gray-600 text-sm">{error}</p>
           </div>
         </div>
       </div>

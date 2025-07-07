@@ -20,123 +20,103 @@ function inventoryReducer(state, action) {
   switch (action.type) {
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
-    
     case 'SET_ERROR':
       return { ...state, error: action.payload, isLoading: false };
-    
+    case 'CLEAR_ERROR':
+      return { ...state, error: null };
     case 'SET_ONLINE':
       return { ...state, isOnline: action.payload };
-    
     case 'SET_LOCATIONS':
       return { ...state, locations: action.payload, isLoading: false };
-    
     case 'SET_CATEGORIES':
       return { ...state, categories: action.payload, isLoading: false };
-    
     case 'SET_SUPPLIERS':
       return { ...state, suppliers: action.payload, isLoading: false };
-    
     case 'SET_ITEMS':
       return { ...state, items: action.payload, isLoading: false };
-    
     case 'SET_STOCK_LEVELS':
       return { ...state, stockLevels: action.payload, isLoading: false };
-    
     case 'SET_TRANSACTIONS':
       return { ...state, transactions: action.payload, isLoading: false };
-
     case 'ADD_LOCATION':
       return { ...state, locations: [...state.locations, action.payload] };
-    
     case 'UPDATE_LOCATION':
       return {
         ...state,
-        locations: state.locations.map(loc => 
+        locations: state.locations.map(loc =>
           loc.id === action.payload.id ? action.payload : loc
         )
       };
-    
     case 'DELETE_LOCATION':
       return {
         ...state,
         locations: state.locations.filter(loc => loc.id !== action.payload),
         stockLevels: state.stockLevels.filter(stock => stock.location_id !== action.payload)
       };
-
     case 'ADD_CATEGORY':
       return { ...state, categories: [...state.categories, action.payload] };
-    
     case 'UPDATE_CATEGORY':
       return {
         ...state,
-        categories: state.categories.map(cat => 
+        categories: state.categories.map(cat =>
           cat.id === action.payload.id ? action.payload : cat
         )
       };
-    
     case 'DELETE_CATEGORY':
       return {
         ...state,
         categories: state.categories.filter(cat => cat.id !== action.payload)
       };
-
     case 'ADD_SUPPLIER':
       return { ...state, suppliers: [...state.suppliers, action.payload] };
-    
     case 'UPDATE_SUPPLIER':
       return {
         ...state,
-        suppliers: state.suppliers.map(sup => 
+        suppliers: state.suppliers.map(sup =>
           sup.id === action.payload.id ? action.payload : sup
         )
       };
-    
     case 'DELETE_SUPPLIER':
       return {
         ...state,
         suppliers: state.suppliers.filter(sup => sup.id !== action.payload)
       };
-
     case 'ADD_ITEM':
       return { ...state, items: [...state.items, action.payload] };
-    
     case 'UPDATE_ITEM':
       return {
         ...state,
-        items: state.items.map(item => 
+        items: state.items.map(item =>
           item.id === action.payload.id ? action.payload : item
         )
       };
-    
     case 'DELETE_ITEM':
       return {
         ...state,
         items: state.items.filter(item => item.id !== action.payload),
         stockLevels: state.stockLevels.filter(stock => stock.item_id !== action.payload)
       };
-
     case 'ADD_STOCK_LEVEL':
       return { ...state, stockLevels: [...state.stockLevels, action.payload] };
-    
     case 'UPDATE_STOCK_LEVEL':
       const existingIndex = state.stockLevels.findIndex(
         stock => stock.item_id === action.payload.item_id && stock.location_id === action.payload.location_id
       );
-      
       if (existingIndex >= 0) {
         return {
           ...state,
-          stockLevels: state.stockLevels.map((stock, index) => 
+          stockLevels: state.stockLevels.map((stock, index) =>
             index === existingIndex ? action.payload : stock
           )
         };
       } else {
-        return { ...state, stockLevels: [...state.stockLevels, action.payload] };
+        return {
+          ...state,
+          stockLevels: [...state.stockLevels, action.payload]
+        };
       }
-
     case 'ADD_TRANSACTION':
       return { ...state, transactions: [...state.transactions, action.payload] };
-
     default:
       return state;
   }
@@ -249,6 +229,8 @@ export function InventoryProvider({ children }) {
   useEffect(() => {
     const loadAllData = async () => {
       dispatch({ type: 'SET_LOADING', payload: true });
+      dispatch({ type: 'CLEAR_ERROR' });
+      
       try {
         await Promise.all([
           loadLocations(),
@@ -342,7 +324,6 @@ export function InventoryProvider({ children }) {
         locationId: id,
         locationName: location?.name || 'Unknown Location'
       });
-      
     } catch (error) {
       console.error('Error deleting location:', error);
       throw error;
@@ -420,7 +401,6 @@ export function InventoryProvider({ children }) {
         categoryId: id,
         categoryName: category?.name || 'Unknown Category'
       });
-      
     } catch (error) {
       console.error('Error deleting category:', error);
       throw error;
@@ -500,7 +480,6 @@ export function InventoryProvider({ children }) {
         supplierId: id,
         supplierName: supplier?.name || 'Unknown Supplier'
       });
-      
     } catch (error) {
       console.error('Error deleting supplier:', error);
       throw error;
@@ -592,7 +571,6 @@ export function InventoryProvider({ children }) {
         itemId: id,
         itemName: item?.name || 'Unknown Item'
       });
-      
     } catch (error) {
       console.error('Error deleting item:', error);
       throw error;
@@ -610,7 +588,7 @@ export function InventoryProvider({ children }) {
       );
       const previousQuantity = existingStock ? existingStock.quantity : 0;
       const quantityChange = quantity - previousQuantity;
-
+      
       const { data, error } = await supabase
         .from('stock_levels_fyngan_2024')
         .upsert({
@@ -661,7 +639,7 @@ export function InventoryProvider({ children }) {
         details,
         user_name: 'System'
       };
-
+      
       const { data, error } = await supabase
         .from('transactions_fyngan_2024')
         .insert([transaction])
@@ -671,7 +649,6 @@ export function InventoryProvider({ children }) {
       if (error) throw error;
       
       dispatch({ type: 'ADD_TRANSACTION', payload: data });
-      
       return data;
     } catch (error) {
       console.error('Error logging transaction:', error);
@@ -682,11 +659,12 @@ export function InventoryProvider({ children }) {
   // Utility functions
   const getStockAlerts = () => {
     const alerts = [];
+    
     state.items.forEach(item => {
       const totalStock = state.stockLevels
         .filter(stock => stock.item_id === item.id)
         .reduce((sum, stock) => sum + parseFloat(stock.quantity), 0);
-
+      
       if (totalStock <= item.min_stock) {
         alerts.push({
           id: `${item.id}-low`,
@@ -698,6 +676,7 @@ export function InventoryProvider({ children }) {
         });
       }
     });
+    
     return alerts;
   };
 

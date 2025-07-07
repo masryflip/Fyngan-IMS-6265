@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Sidebar from './components/Sidebar';
@@ -27,7 +27,7 @@ function App() {
           />
           
           <div className="flex-1 flex flex-col overflow-hidden">
-            <motion.main
+            <motion.main 
               className="flex-1 overflow-y-auto"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
