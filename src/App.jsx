@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Sidebar from './components/Sidebar';
+import AuthGuard from './components/AuthGuard';
 import Dashboard from './pages/Dashboard';
 import Locations from './pages/Locations';
 import Categories from './pages/Categories';
@@ -11,7 +12,9 @@ import StockEntry from './pages/StockEntry';
 import StockAnalysis from './pages/StockAnalysis';
 import Alerts from './pages/Alerts';
 import TransactionLog from './pages/TransactionLog';
+import UserManagement from './pages/UserManagement';
 import { InventoryProvider, useInventory } from './context/InventoryContext';
+import { AuthProvider } from './context/AuthContext';
 import './App.css';
 
 function AppContent() {
@@ -49,46 +52,51 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 lg:flex">
-      {/* Sidebar */}
-      <Sidebar 
-        isOpen={isSidebarOpen} 
-        onToggle={() => setIsSidebarOpen(!isSidebarOpen)} 
-      />
+    <AuthGuard>
+      <div className="min-h-screen bg-gray-50 lg:flex">
+        {/* Sidebar */}
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        />
 
-      {/* Main content */}
-      <div className="flex-1 lg:flex lg:flex-col">
-        {/* Content area with proper padding for mobile menu button */}
-        <motion.main
-          className="flex-1 pt-16 lg:pt-0 px-0 lg:px-0"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/locations" element={<Locations />} />
-            <Route path="/categories" element={<Categories />} />
-            <Route path="/items" element={<Items />} />
-            <Route path="/suppliers" element={<Suppliers />} />
-            <Route path="/stock-entry" element={<StockEntry />} />
-            <Route path="/stock-analysis" element={<StockAnalysis />} />
-            <Route path="/alerts" element={<Alerts />} />
-            <Route path="/transaction-log" element={<TransactionLog />} />
-          </Routes>
-        </motion.main>
+        {/* Main content */}
+        <div className="flex-1 lg:flex lg:flex-col">
+          {/* Content area with proper padding for mobile menu button */}
+          <motion.main
+            className="flex-1 pt-16 lg:pt-0 px-0 lg:px-0"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/locations" element={<Locations />} />
+              <Route path="/categories" element={<Categories />} />
+              <Route path="/items" element={<Items />} />
+              <Route path="/suppliers" element={<Suppliers />} />
+              <Route path="/stock-entry" element={<StockEntry />} />
+              <Route path="/stock-analysis" element={<StockAnalysis />} />
+              <Route path="/alerts" element={<Alerts />} />
+              <Route path="/transaction-log" element={<TransactionLog />} />
+              <Route path="/user-management" element={<UserManagement />} />
+            </Routes>
+          </motion.main>
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   );
 }
 
 function App() {
   return (
-    <InventoryProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </InventoryProvider>
+    <AuthProvider>
+      <InventoryProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </InventoryProvider>
+    </AuthProvider>
   );
 }
 
