@@ -1,27 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import Sidebar from './components/Sidebar';
-import AuthGuard from './components/AuthGuard';
-import Dashboard from './pages/Dashboard';
-import Locations from './pages/Locations';
-import LocationTypes from './pages/LocationTypes';
-import LocationItemAssignment from './pages/LocationItemAssignment';
-import Categories from './pages/Categories';
-import Items from './pages/Items';
-import Suppliers from './pages/Suppliers';
-import StockEntry from './pages/StockEntry';
-import StockAnalysis from './pages/StockAnalysis';
-import Alerts from './pages/Alerts';
-import TransactionLog from './pages/TransactionLog';
-import UserManagement from './pages/UserManagement';
-import { InventoryProvider, useInventory } from './context/InventoryContext';
-import { AuthProvider } from './context/AuthContext';
-import './App.css';
+import React, { useState, useEffect } from 'react'
+import { HashRouter as Router, Routes, Route } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import Sidebar from './components/Sidebar'
+import AuthGuard from './components/AuthGuard'
+import Dashboard from './pages/Dashboard'
+import Locations from './pages/Locations'
+import LocationTypes from './pages/LocationTypes'
+import LocationItemAssignment from './pages/LocationItemAssignment'
+import Categories from './pages/Categories'
+import Items from './pages/Items'
+import Suppliers from './pages/Suppliers'
+import StockEntry from './pages/StockEntry'
+import StockAnalysis from './pages/StockAnalysis'
+import Alerts from './pages/Alerts'
+import TransactionLog from './pages/TransactionLog'
+import UserManagement from './pages/UserManagement'
+import { InventoryProvider, useInventory } from './context/InventoryContext'
+import { AuthProvider } from './context/AuthContext'
+import './App.css'
 
 function AppContent() {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { isLoading, error } = useInventory();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const { isLoading, error } = useInventory()
 
   if (isLoading) {
     return (
@@ -31,7 +31,7 @@ function AppContent() {
           <p className="text-gray-600">Loading inventory data...</p>
         </div>
       </div>
-    );
+    )
   }
 
   if (error) {
@@ -42,15 +42,15 @@ function AppContent() {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Data</h2>
           <p className="text-red-600 mb-4">{error}</p>
           <p className="text-gray-600 mb-6">Unable to load inventory data. Please try refreshing the page.</p>
-          <button
-            onClick={() => window.location.reload()}
+          <button 
+            onClick={() => window.location.reload()} 
             className="bg-coffee-600 text-white px-4 py-2 rounded-md hover:bg-coffee-700"
           >
             Refresh Page
           </button>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -89,7 +89,7 @@ function AppContent() {
         </div>
       </div>
     </AuthGuard>
-  );
+  )
 }
 
 function App() {
@@ -101,7 +101,7 @@ function App() {
         </Router>
       </InventoryProvider>
     </AuthProvider>
-  );
+  )
 }
 
-export default App;
+export default App
