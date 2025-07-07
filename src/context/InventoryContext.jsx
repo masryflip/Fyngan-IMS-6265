@@ -126,31 +126,12 @@ export function InventoryProvider({ children }) {
   const [state, dispatch] = useReducer(inventoryReducer, initialState);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Database operations - fetch existing data only
+  // Database operations - fetch existing data only (NO SAMPLE DATA)
   const loadLocations = async () => {
     try {
       console.log("📍 Loading existing locations from database...");
       dispatch({ type: 'CLEAR_ERROR' });
       
-      // First, check if the table exists
-      const { data: tableExists, error: tableError } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public')
-        .eq('table_name', 'locations_fyngan_2024')
-        .single();
-      
-      // If table doesn't exist, create it
-      if (tableError || !tableExists) {
-        console.log("Table locations_fyngan_2024 doesn't exist, creating it...");
-        await supabase.rpc('create_locations_table');
-        
-        // Return empty array since table was just created
-        dispatch({ type: 'SET_LOCATIONS', payload: [] });
-        return true;
-      }
-      
-      // Table exists, fetch data
       const { data, error } = await supabase
         .from('locations_fyngan_2024')
         .select('*')
@@ -161,39 +142,11 @@ export function InventoryProvider({ children }) {
         throw error;
       }
 
-      console.log("✅ Successfully loaded locations:", { count: data?.length || 0, locations: data || [] });
+      console.log(`✅ Successfully loaded ${data?.length || 0} existing locations from database`);
       dispatch({ type: 'SET_LOCATIONS', payload: data || [] });
       return true;
     } catch (error) {
       console.error('💥 Critical error loading locations:', error);
-      
-      // Create the table if it doesn't exist
-      if (error.message && error.message.includes('does not exist')) {
-        try {
-          console.log("Creating locations_fyngan_2024 table...");
-          await supabase.query(`
-            CREATE TABLE IF NOT EXISTS locations_fyngan_2024 (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              name TEXT NOT NULL,
-              address TEXT,
-              type TEXT DEFAULT 'retail',
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-            );
-            
-            ALTER TABLE locations_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY "Enable all access for anon" ON locations_fyngan_2024 USING (true) WITH CHECK (true);
-          `);
-          
-          dispatch({ type: 'SET_LOCATIONS', payload: [] });
-          return true;
-        } catch (createError) {
-          console.error('Failed to create locations table:', createError);
-          dispatch({ type: 'SET_ERROR', payload: `Failed to create locations table: ${createError.message}` });
-          return false;
-        }
-      }
-      
       dispatch({ type: 'SET_ERROR', payload: `Failed to load locations: ${error.message}` });
       return false;
     }
@@ -203,36 +156,6 @@ export function InventoryProvider({ children }) {
     try {
       console.log("📁 Loading existing categories from database...");
       
-      // First, check if the table exists
-      const { data: tableExists, error: tableError } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public')
-        .eq('table_name', 'categories_fyngan_2024')
-        .single();
-      
-      // If table doesn't exist, create it
-      if (tableError || !tableExists) {
-        console.log("Table categories_fyngan_2024 doesn't exist, creating it...");
-        await supabase.query(`
-          CREATE TABLE IF NOT EXISTS categories_fyngan_2024 (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            name TEXT NOT NULL,
-            description TEXT,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-          );
-          
-          ALTER TABLE categories_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-          CREATE POLICY "Enable all access for anon" ON categories_fyngan_2024 USING (true) WITH CHECK (true);
-        `);
-        
-        // Return empty array since table was just created
-        dispatch({ type: 'SET_CATEGORIES', payload: [] });
-        return true;
-      }
-      
-      // Table exists, fetch data
       const { data, error } = await supabase
         .from('categories_fyngan_2024')
         .select('*')
@@ -243,38 +166,11 @@ export function InventoryProvider({ children }) {
         throw error;
       }
 
-      console.log("✅ Successfully loaded categories:", { count: data?.length || 0, categories: data || [] });
+      console.log(`✅ Successfully loaded ${data?.length || 0} existing categories from database`);
       dispatch({ type: 'SET_CATEGORIES', payload: data || [] });
       return true;
     } catch (error) {
       console.error('💥 Critical error loading categories:', error);
-      
-      // Create the table if it doesn't exist
-      if (error.message && error.message.includes('does not exist')) {
-        try {
-          console.log("Creating categories_fyngan_2024 table...");
-          await supabase.query(`
-            CREATE TABLE IF NOT EXISTS categories_fyngan_2024 (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              name TEXT NOT NULL,
-              description TEXT,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-            );
-            
-            ALTER TABLE categories_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY "Enable all access for anon" ON categories_fyngan_2024 USING (true) WITH CHECK (true);
-          `);
-          
-          dispatch({ type: 'SET_CATEGORIES', payload: [] });
-          return true;
-        } catch (createError) {
-          console.error('Failed to create categories table:', createError);
-          dispatch({ type: 'SET_ERROR', payload: `Failed to create categories table: ${createError.message}` });
-          return false;
-        }
-      }
-      
       dispatch({ type: 'SET_ERROR', payload: `Failed to load categories: ${error.message}` });
       return false;
     }
@@ -284,38 +180,6 @@ export function InventoryProvider({ children }) {
     try {
       console.log("🚛 Loading existing suppliers from database...");
       
-      // First, check if the table exists
-      const { data: tableExists, error: tableError } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public')
-        .eq('table_name', 'suppliers_fyngan_2024')
-        .single();
-      
-      // If table doesn't exist, create it
-      if (tableError || !tableExists) {
-        console.log("Table suppliers_fyngan_2024 doesn't exist, creating it...");
-        await supabase.query(`
-          CREATE TABLE IF NOT EXISTS suppliers_fyngan_2024 (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            name TEXT NOT NULL,
-            contact TEXT,
-            email TEXT,
-            phone TEXT,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-          );
-          
-          ALTER TABLE suppliers_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-          CREATE POLICY "Enable all access for anon" ON suppliers_fyngan_2024 USING (true) WITH CHECK (true);
-        `);
-        
-        // Return empty array since table was just created
-        dispatch({ type: 'SET_SUPPLIERS', payload: [] });
-        return true;
-      }
-      
-      // Table exists, fetch data
       const { data, error } = await supabase
         .from('suppliers_fyngan_2024')
         .select('*')
@@ -326,40 +190,11 @@ export function InventoryProvider({ children }) {
         throw error;
       }
 
-      console.log("✅ Successfully loaded suppliers:", { count: data?.length || 0, suppliers: data || [] });
+      console.log(`✅ Successfully loaded ${data?.length || 0} existing suppliers from database`);
       dispatch({ type: 'SET_SUPPLIERS', payload: data || [] });
       return true;
     } catch (error) {
       console.error('💥 Critical error loading suppliers:', error);
-      
-      // Create the table if it doesn't exist
-      if (error.message && error.message.includes('does not exist')) {
-        try {
-          console.log("Creating suppliers_fyngan_2024 table...");
-          await supabase.query(`
-            CREATE TABLE IF NOT EXISTS suppliers_fyngan_2024 (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              name TEXT NOT NULL,
-              contact TEXT,
-              email TEXT,
-              phone TEXT,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-            );
-            
-            ALTER TABLE suppliers_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY "Enable all access for anon" ON suppliers_fyngan_2024 USING (true) WITH CHECK (true);
-          `);
-          
-          dispatch({ type: 'SET_SUPPLIERS', payload: [] });
-          return true;
-        } catch (createError) {
-          console.error('Failed to create suppliers table:', createError);
-          dispatch({ type: 'SET_ERROR', payload: `Failed to create suppliers table: ${createError.message}` });
-          return false;
-        }
-      }
-      
       dispatch({ type: 'SET_ERROR', payload: `Failed to load suppliers: ${error.message}` });
       return false;
     }
@@ -369,40 +204,6 @@ export function InventoryProvider({ children }) {
     try {
       console.log("📦 Loading existing items from database...");
       
-      // First, check if the table exists
-      const { data: tableExists, error: tableError } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public')
-        .eq('table_name', 'items_fyngan_2024')
-        .single();
-      
-      // If table doesn't exist, create it
-      if (tableError || !tableExists) {
-        console.log("Table items_fyngan_2024 doesn't exist, creating it...");
-        await supabase.query(`
-          CREATE TABLE IF NOT EXISTS items_fyngan_2024 (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            name TEXT NOT NULL,
-            category_id UUID REFERENCES categories_fyngan_2024(id),
-            supplier_id UUID REFERENCES suppliers_fyngan_2024(id),
-            unit TEXT DEFAULT 'piece',
-            min_stock NUMERIC DEFAULT 0,
-            max_stock NUMERIC DEFAULT 0,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-          );
-          
-          ALTER TABLE items_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-          CREATE POLICY "Enable all access for anon" ON items_fyngan_2024 USING (true) WITH CHECK (true);
-        `);
-        
-        // Return empty array since table was just created
-        dispatch({ type: 'SET_ITEMS', payload: [] });
-        return true;
-      }
-      
-      // Table exists, fetch data
       const { data, error } = await supabase
         .from('items_fyngan_2024')
         .select(`
@@ -417,42 +218,11 @@ export function InventoryProvider({ children }) {
         throw error;
       }
 
-      console.log("✅ Successfully loaded items:", { count: data?.length || 0, items: data || [] });
+      console.log(`✅ Successfully loaded ${data?.length || 0} existing items from database`);
       dispatch({ type: 'SET_ITEMS', payload: data || [] });
       return true;
     } catch (error) {
       console.error('💥 Critical error loading items:', error);
-      
-      // Create the table if it doesn't exist
-      if (error.message && error.message.includes('does not exist')) {
-        try {
-          console.log("Creating items_fyngan_2024 table...");
-          await supabase.query(`
-            CREATE TABLE IF NOT EXISTS items_fyngan_2024 (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              name TEXT NOT NULL,
-              category_id UUID REFERENCES categories_fyngan_2024(id),
-              supplier_id UUID REFERENCES suppliers_fyngan_2024(id),
-              unit TEXT DEFAULT 'piece',
-              min_stock NUMERIC DEFAULT 0,
-              max_stock NUMERIC DEFAULT 0,
-              created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-            );
-            
-            ALTER TABLE items_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY "Enable all access for anon" ON items_fyngan_2024 USING (true) WITH CHECK (true);
-          `);
-          
-          dispatch({ type: 'SET_ITEMS', payload: [] });
-          return true;
-        } catch (createError) {
-          console.error('Failed to create items table:', createError);
-          dispatch({ type: 'SET_ERROR', payload: `Failed to create items table: ${createError.message}` });
-          return false;
-        }
-      }
-      
       dispatch({ type: 'SET_ERROR', payload: `Failed to load items: ${error.message}` });
       return false;
     }
@@ -462,36 +232,6 @@ export function InventoryProvider({ children }) {
     try {
       console.log("📊 Loading existing stock levels from database...");
       
-      // First, check if the table exists
-      const { data: tableExists, error: tableError } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public')
-        .eq('table_name', 'stock_levels_fyngan_2024')
-        .single();
-      
-      // If table doesn't exist, create it
-      if (tableError || !tableExists) {
-        console.log("Table stock_levels_fyngan_2024 doesn't exist, creating it...");
-        await supabase.query(`
-          CREATE TABLE IF NOT EXISTS stock_levels_fyngan_2024 (
-            item_id UUID REFERENCES items_fyngan_2024(id),
-            location_id UUID REFERENCES locations_fyngan_2024(id),
-            quantity NUMERIC DEFAULT 0,
-            last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            PRIMARY KEY (item_id, location_id)
-          );
-          
-          ALTER TABLE stock_levels_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-          CREATE POLICY "Enable all access for anon" ON stock_levels_fyngan_2024 USING (true) WITH CHECK (true);
-        `);
-        
-        // Return empty array since table was just created
-        dispatch({ type: 'SET_STOCK_LEVELS', payload: [] });
-        return true;
-      }
-      
-      // Table exists, fetch data
       const { data, error } = await supabase
         .from('stock_levels_fyngan_2024')
         .select(`
@@ -506,38 +246,11 @@ export function InventoryProvider({ children }) {
         throw error;
       }
 
-      console.log("✅ Successfully loaded stock levels:", { count: data?.length || 0, stockLevels: data || [] });
+      console.log(`✅ Successfully loaded ${data?.length || 0} existing stock level records from database`);
       dispatch({ type: 'SET_STOCK_LEVELS', payload: data || [] });
       return true;
     } catch (error) {
       console.error('💥 Critical error loading stock levels:', error);
-      
-      // Create the table if it doesn't exist
-      if (error.message && error.message.includes('does not exist')) {
-        try {
-          console.log("Creating stock_levels_fyngan_2024 table...");
-          await supabase.query(`
-            CREATE TABLE IF NOT EXISTS stock_levels_fyngan_2024 (
-              item_id UUID REFERENCES items_fyngan_2024(id),
-              location_id UUID REFERENCES locations_fyngan_2024(id),
-              quantity NUMERIC DEFAULT 0,
-              last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              PRIMARY KEY (item_id, location_id)
-            );
-            
-            ALTER TABLE stock_levels_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY "Enable all access for anon" ON stock_levels_fyngan_2024 USING (true) WITH CHECK (true);
-          `);
-          
-          dispatch({ type: 'SET_STOCK_LEVELS', payload: [] });
-          return true;
-        } catch (createError) {
-          console.error('Failed to create stock_levels table:', createError);
-          dispatch({ type: 'SET_ERROR', payload: `Failed to create stock_levels table: ${createError.message}` });
-          return false;
-        }
-      }
-      
       dispatch({ type: 'SET_ERROR', payload: `Failed to load stock levels: ${error.message}` });
       return false;
     }
@@ -547,36 +260,6 @@ export function InventoryProvider({ children }) {
     try {
       console.log("📋 Loading existing transactions from database...");
       
-      // First, check if the table exists
-      const { data: tableExists, error: tableError } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public')
-        .eq('table_name', 'transactions_fyngan_2024')
-        .single();
-      
-      // If table doesn't exist, create it
-      if (tableError || !tableExists) {
-        console.log("Table transactions_fyngan_2024 doesn't exist, creating it...");
-        await supabase.query(`
-          CREATE TABLE IF NOT EXISTS transactions_fyngan_2024 (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            type TEXT NOT NULL,
-            timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            details JSONB,
-            user_name TEXT DEFAULT 'System'
-          );
-          
-          ALTER TABLE transactions_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-          CREATE POLICY "Enable all access for anon" ON transactions_fyngan_2024 USING (true) WITH CHECK (true);
-        `);
-        
-        // Return empty array since table was just created
-        dispatch({ type: 'SET_TRANSACTIONS', payload: [] });
-        return true;
-      }
-      
-      // Table exists, fetch data
       const { data, error } = await supabase
         .from('transactions_fyngan_2024')
         .select('*')
@@ -592,39 +275,11 @@ export function InventoryProvider({ children }) {
         throw error;
       }
 
-      console.log("✅ Successfully loaded transactions:", { count: data?.length || 0 });
+      console.log(`✅ Successfully loaded ${data?.length || 0} existing transactions from database`);
       dispatch({ type: 'SET_TRANSACTIONS', payload: data || [] });
       return true;
     } catch (error) {
       console.error('💥 Critical error loading transactions:', error);
-      
-      // Create the table if it doesn't exist
-      if (error.message && error.message.includes('does not exist')) {
-        try {
-          console.log("Creating transactions_fyngan_2024 table...");
-          await supabase.query(`
-            CREATE TABLE IF NOT EXISTS transactions_fyngan_2024 (
-              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-              type TEXT NOT NULL,
-              timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-              details JSONB,
-              user_name TEXT DEFAULT 'System'
-            );
-            
-            ALTER TABLE transactions_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-            CREATE POLICY "Enable all access for anon" ON transactions_fyngan_2024 USING (true) WITH CHECK (true);
-          `);
-          
-          dispatch({ type: 'SET_TRANSACTIONS', payload: [] });
-          return true;
-        } catch (createError) {
-          console.error('Failed to create transactions table:', createError);
-          // Don't fail the entire app for this table
-          dispatch({ type: 'SET_TRANSACTIONS', payload: [] });
-          return true;
-        }
-      }
-      
       // Don't fail the entire app if transactions fail
       console.log('🔄 Continuing without transactions...');
       dispatch({ type: 'SET_TRANSACTIONS', payload: [] });
@@ -664,10 +319,10 @@ export function InventoryProvider({ children }) {
     }
   };
 
-  // Load all data on app startup
+  // Load all data on app startup - ONLY EXISTING DATA, NO SAMPLE DATA
   useEffect(() => {
     const loadAllData = async () => {
-      console.log("🚀 APP STARTUP: Loading all existing data from database...");
+      console.log("🚀 APP STARTUP: Loading all existing data from database (NO SAMPLE DATA)...");
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
       
@@ -688,7 +343,7 @@ export function InventoryProvider({ children }) {
         }
         
         dispatch({ type: 'SET_INITIALIZED', payload: true });
-        console.log("🎉 App initialization completed successfully!");
+        console.log("🎉 App initialization completed successfully! Showing only existing data from database.");
       } catch (error) {
         console.error('💥 Critical error during app startup:', error);
         dispatch({ type: 'SET_ERROR', payload: `App startup failed: ${error.message}` });
@@ -700,7 +355,7 @@ export function InventoryProvider({ children }) {
     loadAllData();
   }, []);
 
-  // CRUD operations (only modify existing data, don't create new)
+  // CRUD operations
   const addLocation = async (locationData) => {
     try {
       const { data, error } = await supabase
