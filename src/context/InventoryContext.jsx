@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import supabase from '../lib/supabase';
 
@@ -11,9 +11,10 @@ const initialState = {
   items: [],
   stockLevels: [],
   transactions: [],
-  isLoading: false,
+  isLoading: true,
   error: null,
-  isOnline: true
+  isOnline: true,
+  isInitialized: false
 };
 
 function inventoryReducer(state, action) {
@@ -26,18 +27,20 @@ function inventoryReducer(state, action) {
       return { ...state, error: null };
     case 'SET_ONLINE':
       return { ...state, isOnline: action.payload };
+    case 'SET_INITIALIZED':
+      return { ...state, isInitialized: true };
     case 'SET_LOCATIONS':
-      return { ...state, locations: action.payload, isLoading: false };
+      return { ...state, locations: action.payload };
     case 'SET_CATEGORIES':
-      return { ...state, categories: action.payload, isLoading: false };
+      return { ...state, categories: action.payload };
     case 'SET_SUPPLIERS':
-      return { ...state, suppliers: action.payload, isLoading: false };
+      return { ...state, suppliers: action.payload };
     case 'SET_ITEMS':
-      return { ...state, items: action.payload, isLoading: false };
+      return { ...state, items: action.payload };
     case 'SET_STOCK_LEVELS':
-      return { ...state, stockLevels: action.payload, isLoading: false };
+      return { ...state, stockLevels: action.payload };
     case 'SET_TRANSACTIONS':
-      return { ...state, transactions: action.payload, isLoading: false };
+      return { ...state, transactions: action.payload };
     case 'ADD_LOCATION':
       return { ...state, locations: [...state.locations, action.payload] };
     case 'UPDATE_LOCATION':
@@ -125,6 +128,8 @@ function inventoryReducer(state, action) {
 
 export function InventoryProvider({ children }) {
   const [state, dispatch] = useReducer(inventoryReducer, initialState);
+  const [retryCount, setRetryCount] = useState(0);
+  const [tablesCreated, setTablesCreated] = useState(false);
 
   // Database operations
   const loadLocations = async () => {
@@ -157,9 +162,11 @@ export function InventoryProvider({ children }) {
       } else {
         dispatch({ type: 'SET_LOCATIONS', payload: data || [] });
       }
+      return true;
     } catch (error) {
       console.error('Error loading locations:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
+      return false;
     }
   };
 
@@ -192,9 +199,11 @@ export function InventoryProvider({ children }) {
       } else {
         dispatch({ type: 'SET_CATEGORIES', payload: data || [] });
       }
+      return true;
     } catch (error) {
       console.error('Error loading categories:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
+      return false;
     }
   };
 
@@ -229,9 +238,11 @@ export function InventoryProvider({ children }) {
       } else {
         dispatch({ type: 'SET_SUPPLIERS', payload: data || [] });
       }
+      return true;
     } catch (error) {
       console.error('Error loading suppliers:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
+      return false;
     }
   };
 
@@ -276,9 +287,11 @@ export function InventoryProvider({ children }) {
       } else {
         dispatch({ type: 'SET_ITEMS', payload: data || [] });
       }
+      return true;
     } catch (error) {
       console.error('Error loading items:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
+      return false;
     }
   };
 
@@ -297,9 +310,11 @@ export function InventoryProvider({ children }) {
       if (error) throw error;
       console.log("Loaded stock levels:", data?.length || 0);
       dispatch({ type: 'SET_STOCK_LEVELS', payload: data || [] });
+      return true;
     } catch (error) {
       console.error('Error loading stock levels:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
+      return false;
     }
   };
 
@@ -312,12 +327,172 @@ export function InventoryProvider({ children }) {
         .order('timestamp', { ascending: false })
         .limit(1000);
       
-      if (error) throw error;
+      if (error) {
+        // If the table doesn't exist, this is a common error
+        if (error.message && error.message.includes('does not exist')) {
+          console.log('Transactions table does not exist yet, will be created');
+          return false;
+        }
+        throw error;
+      }
       console.log("Loaded transactions:", data?.length || 0);
       dispatch({ type: 'SET_TRANSACTIONS', payload: data || [] });
+      return true;
     } catch (error) {
       console.error('Error loading transactions:', error);
       dispatch({ type: 'SET_ERROR', payload: error.message });
+      return false;
+    }
+  };
+
+  // Create database tables if they don't exist
+  const createTables = async () => {
+    if (tablesCreated) return true; // Don't try to create tables more than once
+    
+    try {
+      console.log("Creating database tables directly...");
+      
+      // Create all tables directly with SQL
+      await supabase.query(`
+        -- Create locations table
+        CREATE TABLE IF NOT EXISTS locations_fyngan_2024 (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name TEXT NOT NULL,
+          address TEXT,
+          type TEXT DEFAULT 'retail',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        ALTER TABLE locations_fyngan_2024 ENABLE ROW LEVEL SECURITY;
+        DROP POLICY IF EXISTS "Allow all access" ON locations_fyngan_2024;
+        CREATE POLICY "Allow all access" ON locations_fyngan_2024 USING (true) WITH CHECK (true);
+
+        -- Create categories table
+        CREATE TABLE IF NOT EXISTS categories_fyngan_2024 (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name TEXT NOT NULL,
+          description TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        ALTER TABLE categories_fyngan_2024 ENABLE ROW LEVEL SECURITY;
+        DROP POLICY IF EXISTS "Allow all access" ON categories_fyngan_2024;
+        CREATE POLICY "Allow all access" ON categories_fyngan_2024 USING (true) WITH CHECK (true);
+
+        -- Create suppliers table
+        CREATE TABLE IF NOT EXISTS suppliers_fyngan_2024 (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name TEXT NOT NULL,
+          contact TEXT,
+          email TEXT,
+          phone TEXT,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        ALTER TABLE suppliers_fyngan_2024 ENABLE ROW LEVEL SECURITY;
+        DROP POLICY IF EXISTS "Allow all access" ON suppliers_fyngan_2024;
+        CREATE POLICY "Allow all access" ON suppliers_fyngan_2024 USING (true) WITH CHECK (true);
+
+        -- Create items table
+        CREATE TABLE IF NOT EXISTS items_fyngan_2024 (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          name TEXT NOT NULL,
+          category_id UUID REFERENCES categories_fyngan_2024(id),
+          supplier_id UUID REFERENCES suppliers_fyngan_2024(id),
+          unit TEXT NOT NULL,
+          min_stock NUMERIC DEFAULT 0,
+          max_stock NUMERIC DEFAULT 0,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        ALTER TABLE items_fyngan_2024 ENABLE ROW LEVEL SECURITY;
+        DROP POLICY IF EXISTS "Allow all access" ON items_fyngan_2024;
+        CREATE POLICY "Allow all access" ON items_fyngan_2024 USING (true) WITH CHECK (true);
+
+        -- Create stock levels table
+        CREATE TABLE IF NOT EXISTS stock_levels_fyngan_2024 (
+          item_id UUID REFERENCES items_fyngan_2024(id),
+          location_id UUID REFERENCES locations_fyngan_2024(id),
+          quantity NUMERIC DEFAULT 0,
+          last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          PRIMARY KEY (item_id, location_id)
+        );
+        ALTER TABLE stock_levels_fyngan_2024 ENABLE ROW LEVEL SECURITY;
+        DROP POLICY IF EXISTS "Allow all access" ON stock_levels_fyngan_2024;
+        CREATE POLICY "Allow all access" ON stock_levels_fyngan_2024 USING (true) WITH CHECK (true);
+
+        -- Create transactions table
+        CREATE TABLE IF NOT EXISTS transactions_fyngan_2024 (
+          id UUID PRIMARY KEY,
+          type TEXT NOT NULL,
+          timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          details JSONB,
+          user_name TEXT
+        );
+        ALTER TABLE transactions_fyngan_2024 ENABLE ROW LEVEL SECURITY;
+        DROP POLICY IF EXISTS "Allow all access" ON transactions_fyngan_2024;
+        CREATE POLICY "Allow all access" ON transactions_fyngan_2024 USING (true) WITH CHECK (true);
+
+        -- Insert default location if none exists
+        INSERT INTO locations_fyngan_2024 (name, address, type)
+        SELECT 'Main Store', 'Main Location', 'retail'
+        WHERE NOT EXISTS (SELECT 1 FROM locations_fyngan_2024 LIMIT 1);
+
+        -- Insert default category if none exists
+        INSERT INTO categories_fyngan_2024 (name, description)
+        SELECT 'General', 'Default category'
+        WHERE NOT EXISTS (SELECT 1 FROM categories_fyngan_2024 LIMIT 1);
+
+        -- Insert default supplier if none exists
+        INSERT INTO suppliers_fyngan_2024 (name, contact, email, phone)
+        SELECT 'Default Supplier', 'Contact Person', 'contact@example.com', '123-456-7890'
+        WHERE NOT EXISTS (SELECT 1 FROM suppliers_fyngan_2024 LIMIT 1);
+      `);
+
+      // Add sample items if none exist
+      const { data: categories } = await supabase.from('categories_fyngan_2024').select('id').limit(1);
+      const { data: suppliers } = await supabase.from('suppliers_fyngan_2024').select('id').limit(1);
+      
+      if (categories?.length > 0 && suppliers?.length > 0) {
+        const categoryId = categories[0].id;
+        const supplierId = suppliers[0].id;
+        
+        const { count } = await supabase
+          .from('items_fyngan_2024')
+          .select('*', { count: 'exact', head: true });
+        
+        if (!count || count === 0) {
+          await supabase.from('items_fyngan_2024').insert([
+            {
+              name: 'Arabica Coffee Beans',
+              category_id: categoryId,
+              supplier_id: supplierId,
+              unit: 'kg',
+              min_stock: 5,
+              max_stock: 20
+            },
+            {
+              name: 'Whole Milk',
+              category_id: categoryId,
+              supplier_id: supplierId,
+              unit: 'liter',
+              min_stock: 10,
+              max_stock: 30
+            },
+            {
+              name: 'Granulated Sugar',
+              category_id: categoryId,
+              supplier_id: supplierId,
+              unit: 'kg',
+              min_stock: 3,
+              max_stock: 10
+            }
+          ]);
+        }
+      }
+      
+      console.log("Database tables created successfully");
+      setTablesCreated(true);
+      return true;
+    } catch (error) {
+      console.error('Error creating tables:', error);
+      return false;
     }
   };
 
@@ -328,63 +503,60 @@ export function InventoryProvider({ children }) {
       dispatch({ type: 'CLEAR_ERROR' });
       
       try {
-        // First, check if tables exist
-        const { data: tableData, error: tableError } = await supabase
-          .from('locations_fyngan_2024')
-          .select('count');
+        // First, check if tables exist by trying to access transactions table
+        const { error: tableError } = await supabase
+          .from('transactions_fyngan_2024')
+          .select('count')
+          .limit(1);
         
-        if (tableError) {
-          // Tables don't exist, create them
+        // If there's an error accessing the table, create all tables
+        if (tableError && tableError.message && tableError.message.includes('does not exist')) {
+          console.log('Tables do not exist, creating them...');
           await createTables();
+          
+          // After creating tables, wait a moment for them to be available
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
         // Load data in sequence to ensure dependencies
-        await loadLocations();
-        await loadCategories();
-        await loadSuppliers();
-        await loadItems();
-        await loadStockLevels();
-        await loadTransactions();
+        const locationsLoaded = await loadLocations();
+        const categoriesLoaded = await loadCategories();
+        const suppliersLoaded = await loadSuppliers();
+        
+        if (locationsLoaded && categoriesLoaded && suppliersLoaded) {
+          await loadItems();
+          await loadStockLevels();
+          await loadTransactions();
+        } else {
+          // If basic tables failed to load, try creating tables directly
+          if (retryCount < 2) {
+            setRetryCount(prev => prev + 1);
+            await createTables();
+            // Retry loading after creating tables
+            setTimeout(() => loadAllData(), 2000);
+            return;
+          }
+        }
+        
+        dispatch({ type: 'SET_INITIALIZED', payload: true });
       } catch (error) {
         console.error('Error loading data:', error);
         dispatch({ type: 'SET_ERROR', payload: error.message });
+        
+        // If there's an error and we haven't retried yet, try creating tables
+        if (retryCount < 2) {
+          setRetryCount(prev => prev + 1);
+          await createTables();
+          // Retry loading after creating tables
+          setTimeout(() => loadAllData(), 2000);
+        }
       } finally {
         dispatch({ type: 'SET_LOADING', payload: false });
       }
     };
 
     loadAllData();
-  }, []);
-
-  // Create database tables if they don't exist
-  const createTables = async () => {
-    try {
-      console.log("Creating database tables...");
-      
-      // Create locations table
-      await supabase.rpc('create_locations_table_if_not_exists');
-      
-      // Create categories table
-      await supabase.rpc('create_categories_table_if_not_exists');
-      
-      // Create suppliers table
-      await supabase.rpc('create_suppliers_table_if_not_exists');
-      
-      // Create items table
-      await supabase.rpc('create_items_table_if_not_exists');
-      
-      // Create stock levels table
-      await supabase.rpc('create_stock_levels_table_if_not_exists');
-      
-      // Create transactions table
-      await supabase.rpc('create_transactions_table_if_not_exists');
-      
-      console.log("Database tables created successfully");
-    } catch (error) {
-      console.error('Error creating tables:', error);
-      throw error;
-    }
-  };
+  }, [retryCount]);
 
   // CRUD operations
   const addLocation = async (locationData) => {
@@ -765,12 +937,21 @@ export function InventoryProvider({ children }) {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If the table doesn't exist, this is likely the first run
+        if (error.message && error.message.includes('does not exist')) {
+          console.log('Transactions table does not exist yet, skipping transaction logging');
+          return null;
+        }
+        throw error;
+      }
+      
       dispatch({ type: 'ADD_TRANSACTION', payload: data });
       return data;
     } catch (error) {
       console.error('Error logging transaction:', error);
       // Don't throw error for transaction logging failures
+      return null;
     }
   };
 
@@ -780,15 +961,15 @@ export function InventoryProvider({ children }) {
     state.items.forEach(item => {
       const totalStock = state.stockLevels
         .filter(stock => stock.item_id === item.id)
-        .reduce((sum, stock) => sum + parseFloat(stock.quantity), 0);
+        .reduce((sum, stock) => sum + parseFloat(stock.quantity || 0), 0);
 
-      if (totalStock <= item.min_stock) {
+      if (totalStock <= parseFloat(item.min_stock || 0)) {
         alerts.push({
           id: `${item.id}-low`,
           type: 'low',
           itemName: item.name,
           currentStock: totalStock,
-          minStock: item.min_stock,
+          minStock: parseFloat(item.min_stock || 0),
           severity: totalStock === 0 ? 'critical' : 'warning'
         });
       }
@@ -807,11 +988,11 @@ export function InventoryProvider({ children }) {
   const getTotalStock = (itemId) => {
     return state.stockLevels
       .filter(stock => stock.item_id === itemId)
-      .reduce((sum, stock) => sum + parseFloat(stock.quantity), 0);
+      .reduce((sum, stock) => sum + parseFloat(stock.quantity || 0), 0);
   };
 
   const formatQuantity = (quantity) => {
-    const num = parseFloat(quantity);
+    const num = parseFloat(quantity || 0);
     return num % 1 === 0 ? num.toString() : num.toFixed(2);
   };
 
@@ -844,7 +1025,8 @@ export function InventoryProvider({ children }) {
     loadSuppliers,
     loadItems,
     loadStockLevels,
-    loadTransactions
+    loadTransactions,
+    createTables
   };
 
   return (
