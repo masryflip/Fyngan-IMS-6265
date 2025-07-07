@@ -6,15 +6,15 @@ import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 
 const {
-  FiPackage, FiMapPin, FiAlertTriangle, FiTrendingUp, FiRefreshCw, FiXCircle,
-  FiAlertCircle, FiCheckCircle, FiBarChart3, FiEye, FiGrid, FiLayers,
-  FiChevronDown, FiChevronUp, FiFilter, FiTarget, FiActivity
+  FiPackage, FiMapPin, FiAlertTriangle, FiTrendingUp, FiRefreshCw,
+  FiXCircle, FiAlertCircle, FiCheckCircle, FiBarChart3, FiEye,
+  FiGrid, FiLayers, FiChevronDown, FiChevronUp, FiFilter, FiTarget, FiActivity
 } = FiIcons;
 
 export default function Dashboard() {
   const {
-    items, locations, stockLevels, getStockAlerts, getTotalStock, formatQuantity,
-    isLoading, error, categories
+    items, locations, stockLevels, getStockAlerts, getTotalStock,
+    formatQuantity, isLoading, error, categories
   } = useInventory();
 
   const [selectedLocationView, setSelectedLocationView] = useState('all');
@@ -24,11 +24,11 @@ export default function Dashboard() {
 
   const stockAnalysis = useMemo(() => {
     const alerts = getStockAlerts();
-    
+
     const itemsWithStockAnalysis = items.map(item => {
       const totalStock = getTotalStock(item.id);
       const stockPercentage = item.max_stock > 0 ? (totalStock / item.max_stock) * 100 : 0;
-      
+
       let stockStatus = 'good';
       let statusColor = 'green';
       let urgency = 0;
@@ -55,15 +55,17 @@ export default function Dashboard() {
         urgency = 0;
       }
 
+      // Only include locations that have this item assigned (with stock records)
       const locationStocks = locations.map(location => {
         const stock = stockLevels.find(s => s.item_id === item.id && s.location_id === location.id);
         return {
           id: location.id,
           name: location.name,
           type: location.type,
-          stock: stock ? parseFloat(stock.quantity) : 0
+          stock: stock ? parseFloat(stock.quantity) : 0,
+          hasStockRecord: !!stock // Flag to indicate if this item is assigned to this location
         };
-      }).filter(loc => loc.stock > 0 || selectedLocationView === 'all');
+      }).filter(loc => loc.hasStockRecord); // Only include locations with stock records
 
       return {
         ...item,
@@ -102,23 +104,26 @@ export default function Dashboard() {
   // Location-based analysis
   const locationAnalysis = useMemo(() => {
     return locations.map(location => {
-      const locationItems = items.map(item => {
-        const stock = stockLevels.find(s => s.item_id === item.id && s.location_id === location.id);
-        const currentStock = stock ? parseFloat(stock.quantity) : 0;
-        
-        let stockStatus = 'good';
-        if (currentStock === 0) stockStatus = 'out';
-        else if (currentStock <= item.min_stock) stockStatus = 'critical';
-        else if (currentStock <= item.min_stock * 1.5) stockStatus = 'low';
-        else if (currentStock >= item.max_stock * 0.9) stockStatus = 'high';
-
-        return {
-          ...item,
-          currentStock,
-          stockStatus,
-          stockPercentage: item.max_stock > 0 ? (currentStock / item.max_stock) * 100 : 0
-        };
-      });
+      // Get only items that have stock records for this location
+      const locationItems = items
+        .filter(item => stockLevels.some(s => s.item_id === item.id && s.location_id === location.id))
+        .map(item => {
+          const stock = stockLevels.find(s => s.item_id === item.id && s.location_id === location.id);
+          const currentStock = stock ? parseFloat(stock.quantity) : 0;
+          
+          let stockStatus = 'good';
+          if (currentStock === 0) stockStatus = 'out';
+          else if (currentStock <= item.min_stock) stockStatus = 'critical';
+          else if (currentStock <= item.min_stock * 1.5) stockStatus = 'low';
+          else if (currentStock >= item.max_stock * 0.9) stockStatus = 'high';
+          
+          return {
+            ...item,
+            currentStock,
+            stockStatus,
+            stockPercentage: item.max_stock > 0 ? (currentStock / item.max_stock) * 100 : 0
+          };
+        });
 
       const stats = {
         totalItems: locationItems.length,
@@ -146,15 +151,50 @@ export default function Dashboard() {
   const getStatusConfig = (status) => {
     switch (status) {
       case 'out':
-        return { icon: FiXCircle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', label: 'Out of Stock', priority: 'URGENT' };
+        return {
+          icon: FiXCircle,
+          color: 'text-red-600',
+          bg: 'bg-red-50',
+          border: 'border-red-200',
+          label: 'Out of Stock',
+          priority: 'URGENT'
+        };
       case 'critical':
-        return { icon: FiAlertTriangle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', label: 'Critical', priority: 'HIGH' };
+        return {
+          icon: FiAlertTriangle,
+          color: 'text-red-600',
+          bg: 'bg-red-50',
+          border: 'border-red-200',
+          label: 'Critical',
+          priority: 'HIGH'
+        };
       case 'low':
-        return { icon: FiAlertCircle, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200', label: 'Low Stock', priority: 'MEDIUM' };
+        return {
+          icon: FiAlertCircle,
+          color: 'text-yellow-600',
+          bg: 'bg-yellow-50',
+          border: 'border-yellow-200',
+          label: 'Low Stock',
+          priority: 'MEDIUM'
+        };
       case 'high':
-        return { icon: FiTrendingUp, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', label: 'High Stock', priority: 'INFO' };
+        return {
+          icon: FiTrendingUp,
+          color: 'text-blue-600',
+          bg: 'bg-blue-50',
+          border: 'border-blue-200',
+          label: 'High Stock',
+          priority: 'INFO'
+        };
       default:
-        return { icon: FiCheckCircle, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', label: 'Good Stock', priority: 'GOOD' };
+        return {
+          icon: FiCheckCircle,
+          color: 'text-green-600',
+          bg: 'bg-green-50',
+          border: 'border-green-200',
+          label: 'Good Stock',
+          priority: 'GOOD'
+        };
     }
   };
 
@@ -170,6 +210,7 @@ export default function Dashboard() {
 
   const filteredLocationItems = (locationItems) => {
     if (filterStatus === 'all') return locationItems;
+    
     return locationItems.filter(item => {
       if (filterStatus === 'critical') return item.stockStatus === 'out' || item.stockStatus === 'critical';
       if (filterStatus === 'low') return item.stockStatus === 'low';
@@ -218,7 +259,9 @@ export default function Dashboard() {
           <button
             onClick={() => setViewMode('overview')}
             className={`px-4 py-2 flex items-center space-x-2 transition-colors ${
-              viewMode === 'overview' ? 'bg-coffee-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'
+              viewMode === 'overview'
+                ? 'bg-coffee-600 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-100'
             }`}
           >
             <SafeIcon icon={FiBarChart3} />
@@ -227,7 +270,9 @@ export default function Dashboard() {
           <button
             onClick={() => setViewMode('location-grid')}
             className={`px-4 py-2 flex items-center space-x-2 transition-colors ${
-              viewMode === 'location-grid' ? 'bg-coffee-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'
+              viewMode === 'location-grid'
+                ? 'bg-coffee-600 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-100'
             }`}
           >
             <SafeIcon icon={FiGrid} />
@@ -236,7 +281,9 @@ export default function Dashboard() {
           <button
             onClick={() => setViewMode('location-detail')}
             className={`px-4 py-2 flex items-center space-x-2 transition-colors ${
-              viewMode === 'location-detail' ? 'bg-coffee-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'
+              viewMode === 'location-detail'
+                ? 'bg-coffee-600 text-white'
+                : 'bg-white text-gray-600 hover:bg-gray-100'
             }`}
           >
             <SafeIcon icon={FiLayers} />
@@ -347,6 +394,7 @@ export default function Dashboard() {
               <SafeIcon icon={FiMapPin} className="mr-2" />
               Location Health Overview
             </h2>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {locationAnalysis.map((location, index) => (
                 <motion.div
@@ -355,9 +403,11 @@ export default function Dashboard() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
                   className={`p-4 rounded-lg border-2 ${
-                    location.alertCount > 5 ? 'border-red-200 bg-red-50' :
-                    location.alertCount > 2 ? 'border-yellow-200 bg-yellow-50' :
-                    'border-green-200 bg-green-50'
+                    location.alertCount > 5
+                      ? 'border-red-200 bg-red-50'
+                      : location.alertCount > 2
+                      ? 'border-yellow-200 bg-yellow-50'
+                      : 'border-green-200 bg-green-50'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-3">
@@ -365,38 +415,48 @@ export default function Dashboard() {
                       <SafeIcon icon={getLocationIcon(location.type)} className="text-coffee-600" />
                       <h3 className="font-semibold text-gray-900">{location.name}</h3>
                     </div>
-                    <div className={`px-2 py-1 rounded-full text-xs font-bold ${
-                      location.alertCount > 5 ? 'bg-red-600 text-white' :
-                      location.alertCount > 2 ? 'bg-yellow-600 text-white' :
-                      'bg-green-600 text-white'
-                    }`}>
+                    <div
+                      className={`px-2 py-1 rounded-full text-xs font-bold ${
+                        location.alertCount > 5
+                          ? 'bg-red-600 text-white'
+                          : location.alertCount > 2
+                          ? 'bg-yellow-600 text-white'
+                          : 'bg-green-600 text-white'
+                      }`}
+                    >
                       {location.alertCount} alerts
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span>Health Score:</span>
-                      <span className={`font-bold ${
-                        location.healthScore >= 80 ? 'text-green-600' :
-                        location.healthScore >= 60 ? 'text-yellow-600' :
-                        'text-red-600'
-                      }`}>
+                      <span
+                        className={`font-bold ${
+                          location.healthScore >= 80
+                            ? 'text-green-600'
+                            : location.healthScore >= 60
+                            ? 'text-yellow-600'
+                            : 'text-red-600'
+                        }`}
+                      >
                         {Math.round(location.healthScore)}%
                       </span>
                     </div>
-                    
+
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
+                      <div
                         className={`h-2 rounded-full ${
-                          location.healthScore >= 80 ? 'bg-green-500' :
-                          location.healthScore >= 60 ? 'bg-yellow-500' :
-                          'bg-red-500'
+                          location.healthScore >= 80
+                            ? 'bg-green-500'
+                            : location.healthScore >= 60
+                            ? 'bg-yellow-500'
+                            : 'bg-red-500'
                         }`}
                         style={{ width: `${location.healthScore}%` }}
                       ></div>
                     </div>
-                    
+
                     <div className="flex justify-between text-xs text-gray-600 mt-2">
                       <span>{location.stats.outOfStock} out</span>
                       <span>{location.stats.critical} critical</span>
@@ -431,11 +491,15 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`px-3 py-1 rounded-full text-sm font-bold ${
-                      location.alertCount > 5 ? 'bg-red-100 text-red-800' :
-                      location.alertCount > 2 ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
+                    <div
+                      className={`px-3 py-1 rounded-full text-sm font-bold ${
+                        location.alertCount > 5
+                          ? 'bg-red-100 text-red-800'
+                          : location.alertCount > 2
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-green-100 text-green-800'
+                      }`}
+                    >
                       {location.alertCount} alerts
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
@@ -444,7 +508,7 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="p-4">
                 <div className="grid grid-cols-4 gap-2 mb-4 text-center">
                   <div className="p-2 bg-red-50 rounded">
@@ -464,39 +528,49 @@ export default function Dashboard() {
                     <div className="text-xs text-green-600">Good</div>
                   </div>
                 </div>
-                
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {filteredLocationItems(location.items)
-                    .filter(item => item.currentStock > 0 || item.stockStatus === 'out')
-                    .sort((a, b) => {
-                      const statusOrder = { out: 0, critical: 1, low: 2, good: 3, high: 4 };
-                      return statusOrder[a.stockStatus] - statusOrder[b.stockStatus];
-                    })
-                    .slice(0, 10)
-                    .map((item) => {
-                      const config = getStatusConfig(item.stockStatus);
-                      return (
-                        <div key={item.id} className={`flex items-center justify-between p-2 rounded border ${config.bg} ${config.border}`}>
-                          <div className="flex items-center space-x-2">
-                            <SafeIcon icon={config.icon} className={`text-sm ${config.color}`} />
-                            <span className="text-sm font-medium text-gray-900">{item.name}</span>
-                          </div>
-                          <div className="text-right">
-                            <div className={`text-sm font-bold ${config.color}`}>
-                              {formatQuantity(item.currentStock)} {item.unit}
+
+                {location.items.length === 0 ? (
+                  <div className="text-center py-4 bg-gray-50 rounded-lg">
+                    <SafeIcon icon={FiPackage} className="text-gray-400 text-xl mb-2 mx-auto" />
+                    <p className="text-gray-500 text-sm">No items assigned to this location</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {filteredLocationItems(location.items)
+                      .filter(item => item.currentStock > 0 || item.stockStatus === 'out')
+                      .sort((a, b) => {
+                        const statusOrder = { out: 0, critical: 1, low: 2, good: 3, high: 4 };
+                        return statusOrder[a.stockStatus] - statusOrder[b.stockStatus];
+                      })
+                      .slice(0, 10)
+                      .map((item) => {
+                        const config = getStatusConfig(item.stockStatus);
+                        return (
+                          <div
+                            key={item.id}
+                            className={`flex items-center justify-between p-2 rounded border ${config.bg} ${config.border}`}
+                          >
+                            <div className="flex items-center space-x-2">
+                              <SafeIcon icon={config.icon} className={`text-sm ${config.color}`} />
+                              <span className="text-sm font-medium text-gray-900">{item.name}</span>
                             </div>
-                            <div className="text-xs text-gray-500">
-                              Min: {formatQuantity(item.min_stock)}
+                            <div className="text-right">
+                              <div className={`text-sm font-bold ${config.color}`}>
+                                {formatQuantity(item.currentStock)} {item.unit}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Min: {formatQuantity(item.min_stock)}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                </div>
-                
-                {filteredLocationItems(location.items).length > 10 && (
+                        );
+                      })}
+                  </div>
+                )}
+
+                {location.items.length > 0 && filteredLocationItems(location.items).length > 10 && (
                   <div className="mt-2 text-center">
-                    <button 
+                    <button
                       onClick={() => setViewMode('location-detail')}
                       className="text-coffee-600 hover:text-coffee-800 text-sm font-medium"
                     >
@@ -520,7 +594,7 @@ export default function Dashboard() {
               transition={{ delay: locationIndex * 0.1 }}
               className="bg-white rounded-lg shadow-md border"
             >
-              <div 
+              <div
                 className="p-6 border-b bg-gray-50 cursor-pointer"
                 onClick={() => setExpandedLocation(expandedLocation === location.id ? null : location.id)}
               >
@@ -532,7 +606,6 @@ export default function Dashboard() {
                       <p className="text-gray-600">{location.address}</p>
                     </div>
                   </div>
-                  
                   <div className="flex items-center space-x-4">
                     <div className="grid grid-cols-4 gap-3 text-center">
                       <div className="p-2 bg-red-50 rounded">
@@ -552,62 +625,78 @@ export default function Dashboard() {
                         <div className="text-xs text-green-600">Good</div>
                       </div>
                     </div>
-                    
-                    <SafeIcon 
-                      icon={expandedLocation === location.id ? FiChevronUp : FiChevronDown} 
-                      className="text-xl text-gray-400" 
+                    <SafeIcon
+                      icon={expandedLocation === location.id ? FiChevronUp : FiChevronDown}
+                      className="text-xl text-gray-400"
                     />
                   </div>
                 </div>
               </div>
-              
+
               {expandedLocation === location.id && (
                 <div className="p-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredLocationItems(location.items)
-                      .sort((a, b) => {
-                        const statusOrder = { out: 0, critical: 1, low: 2, good: 3, high: 4 };
-                        return statusOrder[a.stockStatus] - statusOrder[b.stockStatus];
-                      })
-                      .map((item) => {
-                        const config = getStatusConfig(item.stockStatus);
-                        return (
-                          <div key={item.id} className={`p-4 rounded-lg border-2 ${config.bg} ${config.border}`}>
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="font-semibold text-gray-900">{item.name}</h4>
-                              <div className={`flex items-center ${config.color}`}>
-                                <SafeIcon icon={config.icon} className="text-sm mr-1" />
-                                <span className="text-xs font-bold">{config.priority}</span>
+                  {location.items.length === 0 ? (
+                    <div className="text-center py-6 bg-gray-50 rounded-lg">
+                      <SafeIcon icon={FiPackage} className="text-gray-400 text-3xl mb-2 mx-auto" />
+                      <h3 className="text-lg font-medium text-gray-700 mb-1">No Items Assigned</h3>
+                      <p className="text-gray-500">This location doesn't have any items assigned to it yet.</p>
+                      <div className="mt-4">
+                        <a href="#/location-item-assignment" className="text-coffee-600 hover:text-coffee-800">
+                          Assign items to this location →
+                        </a>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredLocationItems(location.items)
+                        .sort((a, b) => {
+                          const statusOrder = { out: 0, critical: 1, low: 2, good: 3, high: 4 };
+                          return statusOrder[a.stockStatus] - statusOrder[b.stockStatus];
+                        })
+                        .map((item) => {
+                          const config = getStatusConfig(item.stockStatus);
+                          return (
+                            <div
+                              key={item.id}
+                              className={`p-4 rounded-lg border-2 ${config.bg} ${config.border}`}
+                            >
+                              <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-semibold text-gray-900">{item.name}</h4>
+                                <div className={`flex items-center ${config.color}`}>
+                                  <SafeIcon icon={config.icon} className="text-sm mr-1" />
+                                  <span className="text-xs font-bold">{config.priority}</span>
+                                </div>
+                              </div>
+
+                              <div className="space-y-1 text-sm">
+                                <div className="flex justify-between">
+                                  <span>Current:</span>
+                                  <span className={`font-bold ${config.color}`}>
+                                    {formatQuantity(item.currentStock)} {item.unit}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between text-gray-600">
+                                  <span>Min needed:</span>
+                                  <span>{formatQuantity(item.min_stock)} {item.unit}</span>
+                                </div>
+
+                                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                                  <div
+                                    className={`h-2 rounded-full ${
+                                      item.stockStatus === 'out' ? 'bg-red-500' :
+                                      item.stockStatus === 'critical' ? 'bg-orange-500' :
+                                      item.stockStatus === 'low' ? 'bg-yellow-500' :
+                                      'bg-green-500'
+                                    }`}
+                                    style={{ width: `${Math.min(item.stockPercentage, 100)}%` }}
+                                  ></div>
+                                </div>
                               </div>
                             </div>
-                            
-                            <div className="space-y-1 text-sm">
-                              <div className="flex justify-between">
-                                <span>Current:</span>
-                                <span className={`font-bold ${config.color}`}>
-                                  {formatQuantity(item.currentStock)} {item.unit}
-                                </span>
-                              </div>
-                              <div className="flex justify-between text-gray-600">
-                                <span>Min needed:</span>
-                                <span>{formatQuantity(item.min_stock)} {item.unit}</span>
-                              </div>
-                              <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                                <div 
-                                  className={`h-2 rounded-full ${
-                                    item.stockStatus === 'out' ? 'bg-red-500' : 
-                                    item.stockStatus === 'critical' ? 'bg-orange-500' :
-                                    item.stockStatus === 'low' ? 'bg-yellow-500' :
-                                    'bg-green-500'
-                                  }`}
-                                  style={{ width: `${Math.min(item.stockPercentage, 100)}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
+                          );
+                        })}
+                    </div>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -628,12 +717,15 @@ export default function Dashboard() {
               Critical Items Requiring Immediate Attention ({stockAnalysis.criticalItems.length})
             </h3>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {stockAnalysis.criticalItems.slice(0, 6).map(item => {
               const config = getStatusConfig(item.stockStatus);
               return (
-                <div key={item.id} className={`p-4 rounded-lg border-2 ${config.bg} ${config.border}`}>
+                <div
+                  key={item.id}
+                  className={`p-4 rounded-lg border-2 ${config.bg} ${config.border}`}
+                >
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-gray-900">{item.name}</h4>
                     <div className={`flex items-center ${config.color}`}>
@@ -641,7 +733,7 @@ export default function Dashboard() {
                       <span className="text-xs font-bold">{config.priority}</span>
                     </div>
                   </div>
-                  
+
                   <div className="space-y-1 text-sm">
                     <div className="flex justify-between">
                       <span>Current:</span>
@@ -653,7 +745,7 @@ export default function Dashboard() {
                       <span>Min needed:</span>
                       <span>{formatQuantity(item.min_stock)} {item.unit}</span>
                     </div>
-                    
+
                     {/* Show locations with stock */}
                     {item.locationStocks.length > 0 && (
                       <div className="mt-2 pt-2 border-t border-gray-200">
@@ -671,7 +763,7 @@ export default function Dashboard() {
               );
             })}
           </div>
-          
+
           {stockAnalysis.criticalItems.length > 6 && (
             <div className="mt-4 text-center">
               <a href="#/alerts" className="inline-flex items-center text-red-600 hover:text-red-800 font-medium">
