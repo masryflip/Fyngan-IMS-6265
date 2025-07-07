@@ -30,16 +30,22 @@ function inventoryReducer(state, action) {
     case 'SET_INITIALIZED':
       return { ...state, isInitialized: true };
     case 'SET_LOCATIONS':
+      console.log('Setting locations in context:', action.payload);
       return { ...state, locations: action.payload };
     case 'SET_CATEGORIES':
+      console.log('Setting categories in context:', action.payload);
       return { ...state, categories: action.payload };
     case 'SET_SUPPLIERS':
+      console.log('Setting suppliers in context:', action.payload);
       return { ...state, suppliers: action.payload };
     case 'SET_ITEMS':
+      console.log('Setting items in context:', action.payload);
       return { ...state, items: action.payload };
     case 'SET_STOCK_LEVELS':
+      console.log('Setting stock levels in context:', action.payload);
       return { ...state, stockLevels: action.payload };
     case 'SET_TRANSACTIONS':
+      console.log('Setting transactions in context:', action.payload);
       return { ...state, transactions: action.payload };
     case 'ADD_LOCATION':
       return { ...state, locations: [...state.locations, action.payload] };
@@ -66,10 +72,7 @@ function inventoryReducer(state, action) {
         )
       };
     case 'DELETE_CATEGORY':
-      return {
-        ...state,
-        categories: state.categories.filter(cat => cat.id !== action.payload)
-      };
+      return { ...state, categories: state.categories.filter(cat => cat.id !== action.payload) };
     case 'ADD_SUPPLIER':
       return { ...state, suppliers: [...state.suppliers, action.payload] };
     case 'UPDATE_SUPPLIER':
@@ -80,10 +83,7 @@ function inventoryReducer(state, action) {
         )
       };
     case 'DELETE_SUPPLIER':
-      return {
-        ...state,
-        suppliers: state.suppliers.filter(sup => sup.id !== action.payload)
-      };
+      return { ...state, suppliers: state.suppliers.filter(sup => sup.id !== action.payload) };
     case 'ADD_ITEM':
       return { ...state, items: [...state.items, action.payload] };
     case 'UPDATE_ITEM':
@@ -103,8 +103,7 @@ function inventoryReducer(state, action) {
       return { ...state, stockLevels: [...state.stockLevels, action.payload] };
     case 'UPDATE_STOCK_LEVEL':
       const existingIndex = state.stockLevels.findIndex(
-        stock =>
-          stock.item_id === action.payload.item_id && stock.location_id === action.payload.location_id
+        stock => stock.item_id === action.payload.item_id && stock.location_id === action.payload.location_id
       );
       if (existingIndex >= 0) {
         return {
@@ -114,10 +113,7 @@ function inventoryReducer(state, action) {
           )
         };
       } else {
-        return {
-          ...state,
-          stockLevels: [...state.stockLevels, action.payload]
-        };
+        return { ...state, stockLevels: [...state.stockLevels, action.payload] };
       }
     case 'ADD_TRANSACTION':
       return { ...state, transactions: [...state.transactions, action.payload] };
@@ -129,126 +125,97 @@ function inventoryReducer(state, action) {
 export function InventoryProvider({ children }) {
   const [state, dispatch] = useReducer(inventoryReducer, initialState);
   const [retryCount, setRetryCount] = useState(0);
-  const [tablesCreated, setTablesCreated] = useState(false);
 
-  // Database operations
+  // Database operations - fetch existing data only
   const loadLocations = async () => {
     try {
-      console.log("Loading locations...");
+      console.log("📍 Loading existing locations from database...");
+      dispatch({ type: 'CLEAR_ERROR' });
+      
       const { data, error } = await supabase
         .from('locations_fyngan_2024')
         .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      console.log("Loaded locations:", data?.length || 0);
-      
-      // Create default location if none exists
-      if (!data || data.length === 0) {
-        const defaultLocation = {
-          name: 'Main Store',
-          address: 'Main Location',
-          type: 'retail'
-        };
-        
-        const { data: newLocation, error: createError } = await supabase
-          .from('locations_fyngan_2024')
-          .insert([defaultLocation])
-          .select();
-          
-        if (createError) throw createError;
-        
-        dispatch({ type: 'SET_LOCATIONS', payload: newLocation || [] });
-      } else {
-        dispatch({ type: 'SET_LOCATIONS', payload: data || [] });
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('❌ Error fetching locations:', error);
+        throw error;
       }
+
+      console.log("✅ Successfully loaded locations:", {
+        count: data?.length || 0,
+        locations: data || []
+      });
+      
+      dispatch({ type: 'SET_LOCATIONS', payload: data || [] });
       return true;
     } catch (error) {
-      console.error('Error loading locations:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
+      console.error('💥 Critical error loading locations:', error);
+      dispatch({ type: 'SET_ERROR', payload: `Failed to load locations: ${error.message}` });
       return false;
     }
   };
 
   const loadCategories = async () => {
     try {
-      console.log("Loading categories...");
+      console.log("📁 Loading existing categories from database...");
+      
       const { data, error } = await supabase
         .from('categories_fyngan_2024')
         .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      console.log("Loaded categories:", data?.length || 0);
-      
-      // Create default category if none exists
-      if (!data || data.length === 0) {
-        const defaultCategory = {
-          name: 'General',
-          description: 'Default category'
-        };
-        
-        const { data: newCategory, error: createError } = await supabase
-          .from('categories_fyngan_2024')
-          .insert([defaultCategory])
-          .select();
-          
-        if (createError) throw createError;
-        
-        dispatch({ type: 'SET_CATEGORIES', payload: newCategory || [] });
-      } else {
-        dispatch({ type: 'SET_CATEGORIES', payload: data || [] });
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('❌ Error fetching categories:', error);
+        throw error;
       }
+
+      console.log("✅ Successfully loaded categories:", {
+        count: data?.length || 0,
+        categories: data || []
+      });
+      
+      dispatch({ type: 'SET_CATEGORIES', payload: data || [] });
       return true;
     } catch (error) {
-      console.error('Error loading categories:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
+      console.error('💥 Critical error loading categories:', error);
+      dispatch({ type: 'SET_ERROR', payload: `Failed to load categories: ${error.message}` });
       return false;
     }
   };
 
   const loadSuppliers = async () => {
     try {
-      console.log("Loading suppliers...");
+      console.log("🚛 Loading existing suppliers from database...");
+      
       const { data, error } = await supabase
         .from('suppliers_fyngan_2024')
         .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      console.log("Loaded suppliers:", data?.length || 0);
-      
-      // Create default supplier if none exists
-      if (!data || data.length === 0) {
-        const defaultSupplier = {
-          name: 'Default Supplier',
-          contact: 'Contact Person',
-          email: 'contact@example.com',
-          phone: '123-456-7890'
-        };
-        
-        const { data: newSupplier, error: createError } = await supabase
-          .from('suppliers_fyngan_2024')
-          .insert([defaultSupplier])
-          .select();
-          
-        if (createError) throw createError;
-        
-        dispatch({ type: 'SET_SUPPLIERS', payload: newSupplier || [] });
-      } else {
-        dispatch({ type: 'SET_SUPPLIERS', payload: data || [] });
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('❌ Error fetching suppliers:', error);
+        throw error;
       }
+
+      console.log("✅ Successfully loaded suppliers:", {
+        count: data?.length || 0,
+        suppliers: data || []
+      });
+      
+      dispatch({ type: 'SET_SUPPLIERS', payload: data || [] });
       return true;
     } catch (error) {
-      console.error('Error loading suppliers:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
+      console.error('💥 Critical error loading suppliers:', error);
+      dispatch({ type: 'SET_ERROR', payload: `Failed to load suppliers: ${error.message}` });
       return false;
     }
   };
 
   const loadItems = async () => {
     try {
-      console.log("Loading items...");
+      console.log("📦 Loading existing items from database...");
+      
       const { data, error } = await supabase
         .from('items_fyngan_2024')
         .select(`
@@ -256,309 +223,162 @@ export function InventoryProvider({ children }) {
           category:categories_fyngan_2024(name),
           supplier:suppliers_fyngan_2024(name)
         `)
-        .order('name');
-      
-      if (error) throw error;
-      console.log("Loaded items:", data?.length || 0);
-      
-      // Create default item if none exists and we have categories and suppliers
-      if ((!data || data.length === 0) && state.categories.length > 0 && state.suppliers.length > 0) {
-        const defaultItem = {
-          name: 'Sample Item',
-          category_id: state.categories[0].id,
-          supplier_id: state.suppliers[0].id,
-          unit: 'piece',
-          min_stock: 5,
-          max_stock: 20
-        };
-        
-        const { data: newItem, error: createError } = await supabase
-          .from('items_fyngan_2024')
-          .insert([defaultItem])
-          .select(`
-            *,
-            category:categories_fyngan_2024(name),
-            supplier:suppliers_fyngan_2024(name)
-          `);
-          
-        if (createError) throw createError;
-        
-        dispatch({ type: 'SET_ITEMS', payload: newItem || [] });
-      } else {
-        dispatch({ type: 'SET_ITEMS', payload: data || [] });
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        console.error('❌ Error fetching items:', error);
+        throw error;
       }
+
+      console.log("✅ Successfully loaded items:", {
+        count: data?.length || 0,
+        items: data || []
+      });
+      
+      dispatch({ type: 'SET_ITEMS', payload: data || [] });
       return true;
     } catch (error) {
-      console.error('Error loading items:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
+      console.error('💥 Critical error loading items:', error);
+      dispatch({ type: 'SET_ERROR', payload: `Failed to load items: ${error.message}` });
       return false;
     }
   };
 
   const loadStockLevels = async () => {
     try {
-      console.log("Loading stock levels...");
+      console.log("📊 Loading existing stock levels from database...");
+      
       const { data, error } = await supabase
         .from('stock_levels_fyngan_2024')
         .select(`
           *,
-          item:items_fyngan_2024(name,unit),
+          item:items_fyngan_2024(name, unit),
           location:locations_fyngan_2024(name)
         `)
         .order('last_updated', { ascending: false });
+
+      if (error) {
+        console.error('❌ Error fetching stock levels:', error);
+        throw error;
+      }
+
+      console.log("✅ Successfully loaded stock levels:", {
+        count: data?.length || 0,
+        stockLevels: data || []
+      });
       
-      if (error) throw error;
-      console.log("Loaded stock levels:", data?.length || 0);
       dispatch({ type: 'SET_STOCK_LEVELS', payload: data || [] });
       return true;
     } catch (error) {
-      console.error('Error loading stock levels:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
+      console.error('💥 Critical error loading stock levels:', error);
+      dispatch({ type: 'SET_ERROR', payload: `Failed to load stock levels: ${error.message}` });
       return false;
     }
   };
 
   const loadTransactions = async () => {
     try {
-      console.log("Loading transactions...");
+      console.log("📋 Loading existing transactions from database...");
+      
       const { data, error } = await supabase
         .from('transactions_fyngan_2024')
         .select('*')
         .order('timestamp', { ascending: false })
         .limit(1000);
-      
+
       if (error) {
-        // If the table doesn't exist, this is a common error
         if (error.message && error.message.includes('does not exist')) {
-          console.log('Transactions table does not exist yet, will be created');
-          return false;
+          console.log('⚠️ Transactions table does not exist yet - this is normal for new setups');
+          dispatch({ type: 'SET_TRANSACTIONS', payload: [] });
+          return true;
         }
         throw error;
       }
-      console.log("Loaded transactions:", data?.length || 0);
+
+      console.log("✅ Successfully loaded transactions:", {
+        count: data?.length || 0
+      });
+      
       dispatch({ type: 'SET_TRANSACTIONS', payload: data || [] });
       return true;
     } catch (error) {
-      console.error('Error loading transactions:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
-      return false;
+      console.error('💥 Critical error loading transactions:', error);
+      // Don't fail the entire app if transactions fail
+      console.log('🔄 Continuing without transactions...');
+      dispatch({ type: 'SET_TRANSACTIONS', payload: [] });
+      return true;
     }
   };
 
-  // Create database tables if they don't exist
-  const createTables = async () => {
-    if (tablesCreated) return true; // Don't try to create tables more than once
+  // Force refresh all data from database
+  const refreshAllData = async () => {
+    console.log("🔄 MANUAL REFRESH: Forcing reload of all data from database...");
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'CLEAR_ERROR' });
     
     try {
-      console.log("Creating database tables directly...");
+      // Load all data in sequence to ensure dependencies
+      console.log("🚀 Starting data refresh sequence...");
       
-      // Create all tables directly with SQL
-      await supabase.query(`
-        -- Create locations table
-        CREATE TABLE IF NOT EXISTS locations_fyngan_2024 (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          name TEXT NOT NULL,
-          address TEXT,
-          type TEXT DEFAULT 'retail',
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-        ALTER TABLE locations_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-        DROP POLICY IF EXISTS "Allow all access" ON locations_fyngan_2024;
-        CREATE POLICY "Allow all access" ON locations_fyngan_2024 USING (true) WITH CHECK (true);
-
-        -- Create categories table
-        CREATE TABLE IF NOT EXISTS categories_fyngan_2024 (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          name TEXT NOT NULL,
-          description TEXT,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-        ALTER TABLE categories_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-        DROP POLICY IF EXISTS "Allow all access" ON categories_fyngan_2024;
-        CREATE POLICY "Allow all access" ON categories_fyngan_2024 USING (true) WITH CHECK (true);
-
-        -- Create suppliers table
-        CREATE TABLE IF NOT EXISTS suppliers_fyngan_2024 (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          name TEXT NOT NULL,
-          contact TEXT,
-          email TEXT,
-          phone TEXT,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-        ALTER TABLE suppliers_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-        DROP POLICY IF EXISTS "Allow all access" ON suppliers_fyngan_2024;
-        CREATE POLICY "Allow all access" ON suppliers_fyngan_2024 USING (true) WITH CHECK (true);
-
-        -- Create items table
-        CREATE TABLE IF NOT EXISTS items_fyngan_2024 (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          name TEXT NOT NULL,
-          category_id UUID REFERENCES categories_fyngan_2024(id),
-          supplier_id UUID REFERENCES suppliers_fyngan_2024(id),
-          unit TEXT NOT NULL,
-          min_stock NUMERIC DEFAULT 0,
-          max_stock NUMERIC DEFAULT 0,
-          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-        ALTER TABLE items_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-        DROP POLICY IF EXISTS "Allow all access" ON items_fyngan_2024;
-        CREATE POLICY "Allow all access" ON items_fyngan_2024 USING (true) WITH CHECK (true);
-
-        -- Create stock levels table
-        CREATE TABLE IF NOT EXISTS stock_levels_fyngan_2024 (
-          item_id UUID REFERENCES items_fyngan_2024(id),
-          location_id UUID REFERENCES locations_fyngan_2024(id),
-          quantity NUMERIC DEFAULT 0,
-          last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          PRIMARY KEY (item_id, location_id)
-        );
-        ALTER TABLE stock_levels_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-        DROP POLICY IF EXISTS "Allow all access" ON stock_levels_fyngan_2024;
-        CREATE POLICY "Allow all access" ON stock_levels_fyngan_2024 USING (true) WITH CHECK (true);
-
-        -- Create transactions table
-        CREATE TABLE IF NOT EXISTS transactions_fyngan_2024 (
-          id UUID PRIMARY KEY,
-          type TEXT NOT NULL,
-          timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-          details JSONB,
-          user_name TEXT
-        );
-        ALTER TABLE transactions_fyngan_2024 ENABLE ROW LEVEL SECURITY;
-        DROP POLICY IF EXISTS "Allow all access" ON transactions_fyngan_2024;
-        CREATE POLICY "Allow all access" ON transactions_fyngan_2024 USING (true) WITH CHECK (true);
-
-        -- Insert default location if none exists
-        INSERT INTO locations_fyngan_2024 (name, address, type)
-        SELECT 'Main Store', 'Main Location', 'retail'
-        WHERE NOT EXISTS (SELECT 1 FROM locations_fyngan_2024 LIMIT 1);
-
-        -- Insert default category if none exists
-        INSERT INTO categories_fyngan_2024 (name, description)
-        SELECT 'General', 'Default category'
-        WHERE NOT EXISTS (SELECT 1 FROM categories_fyngan_2024 LIMIT 1);
-
-        -- Insert default supplier if none exists
-        INSERT INTO suppliers_fyngan_2024 (name, contact, email, phone)
-        SELECT 'Default Supplier', 'Contact Person', 'contact@example.com', '123-456-7890'
-        WHERE NOT EXISTS (SELECT 1 FROM suppliers_fyngan_2024 LIMIT 1);
-      `);
-
-      // Add sample items if none exist
-      const { data: categories } = await supabase.from('categories_fyngan_2024').select('id').limit(1);
-      const { data: suppliers } = await supabase.from('suppliers_fyngan_2024').select('id').limit(1);
+      const locationsLoaded = await loadLocations();
+      const categoriesLoaded = await loadCategories();
+      const suppliersLoaded = await loadSuppliers();
       
-      if (categories?.length > 0 && suppliers?.length > 0) {
-        const categoryId = categories[0].id;
-        const supplierId = suppliers[0].id;
-        
-        const { count } = await supabase
-          .from('items_fyngan_2024')
-          .select('*', { count: 'exact', head: true });
-        
-        if (!count || count === 0) {
-          await supabase.from('items_fyngan_2024').insert([
-            {
-              name: 'Arabica Coffee Beans',
-              category_id: categoryId,
-              supplier_id: supplierId,
-              unit: 'kg',
-              min_stock: 5,
-              max_stock: 20
-            },
-            {
-              name: 'Whole Milk',
-              category_id: categoryId,
-              supplier_id: supplierId,
-              unit: 'liter',
-              min_stock: 10,
-              max_stock: 30
-            },
-            {
-              name: 'Granulated Sugar',
-              category_id: categoryId,
-              supplier_id: supplierId,
-              unit: 'kg',
-              min_stock: 3,
-              max_stock: 10
-            }
-          ]);
-        }
+      if (locationsLoaded && categoriesLoaded && suppliersLoaded) {
+        await loadItems();
+        await loadStockLevels();
+        await loadTransactions();
+      } else {
+        throw new Error('Failed to load basic data (locations, categories, or suppliers)');
       }
       
-      console.log("Database tables created successfully");
-      setTablesCreated(true);
-      return true;
+      dispatch({ type: 'SET_INITIALIZED', payload: true });
+      console.log("✅ Manual refresh completed successfully!");
     } catch (error) {
-      console.error('Error creating tables:', error);
-      return false;
+      console.error('💥 Error during manual refresh:', error);
+      dispatch({ type: 'SET_ERROR', payload: `Refresh failed: ${error.message}` });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
 
-  // Load all data on mount
+  // Load all data on app startup
   useEffect(() => {
     const loadAllData = async () => {
+      console.log("🚀 APP STARTUP: Loading all existing data from database...");
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
-      
+
       try {
-        // First, check if tables exist by trying to access transactions table
-        const { error: tableError } = await supabase
-          .from('transactions_fyngan_2024')
-          .select('count')
-          .limit(1);
-        
-        // If there's an error accessing the table, create all tables
-        if (tableError && tableError.message && tableError.message.includes('does not exist')) {
-          console.log('Tables do not exist, creating them...');
-          await createTables();
-          
-          // After creating tables, wait a moment for them to be available
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-        
         // Load data in sequence to ensure dependencies
+        console.log("📋 Loading sequence: locations → categories → suppliers → items → stock → transactions");
+        
         const locationsLoaded = await loadLocations();
         const categoriesLoaded = await loadCategories();
         const suppliersLoaded = await loadSuppliers();
-        
+
         if (locationsLoaded && categoriesLoaded && suppliersLoaded) {
           await loadItems();
           await loadStockLevels();
           await loadTransactions();
         } else {
-          // If basic tables failed to load, try creating tables directly
-          if (retryCount < 2) {
-            setRetryCount(prev => prev + 1);
-            await createTables();
-            // Retry loading after creating tables
-            setTimeout(() => loadAllData(), 2000);
-            return;
-          }
+          throw new Error('Failed to load basic data tables');
         }
-        
+
         dispatch({ type: 'SET_INITIALIZED', payload: true });
+        console.log("🎉 App initialization completed successfully!");
       } catch (error) {
-        console.error('Error loading data:', error);
-        dispatch({ type: 'SET_ERROR', payload: error.message });
-        
-        // If there's an error and we haven't retried yet, try creating tables
-        if (retryCount < 2) {
-          setRetryCount(prev => prev + 1);
-          await createTables();
-          // Retry loading after creating tables
-          setTimeout(() => loadAllData(), 2000);
-        }
+        console.error('💥 Critical error during app startup:', error);
+        dispatch({ type: 'SET_ERROR', payload: `App startup failed: ${error.message}` });
       } finally {
         dispatch({ type: 'SET_LOADING', payload: false });
       }
     };
 
     loadAllData();
-  }, [retryCount]);
+  }, []);
 
-  // CRUD operations
+  // CRUD operations (only modify existing data, don't create new)
   const addLocation = async (locationData) => {
     try {
       const { data, error } = await supabase
@@ -568,16 +388,15 @@ export function InventoryProvider({ children }) {
         .single();
 
       if (error) throw error;
-      dispatch({ type: 'ADD_LOCATION', payload: data });
 
-      // Log transaction
+      dispatch({ type: 'ADD_LOCATION', payload: data });
       await logTransaction('LOCATION_ADDED', {
         locationId: data.id,
         locationName: data.name,
         address: data.address,
         type: data.type
       });
-
+      
       return data;
     } catch (error) {
       console.error('Error adding location:', error);
@@ -595,15 +414,14 @@ export function InventoryProvider({ children }) {
         .single();
 
       if (error) throw error;
-      dispatch({ type: 'UPDATE_LOCATION', payload: data });
 
-      // Log transaction
+      dispatch({ type: 'UPDATE_LOCATION', payload: data });
       await logTransaction('LOCATION_UPDATED', {
         locationId: data.id,
         locationName: data.name,
         changes: locationData
       });
-
+      
       return data;
     } catch (error) {
       console.error('Error updating location:', error);
@@ -614,15 +432,15 @@ export function InventoryProvider({ children }) {
   const deleteLocation = async (id) => {
     try {
       const location = state.locations.find(loc => loc.id === id);
+      
       const { error } = await supabase
         .from('locations_fyngan_2024')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
-      dispatch({ type: 'DELETE_LOCATION', payload: id });
 
-      // Log transaction
+      dispatch({ type: 'DELETE_LOCATION', payload: id });
       await logTransaction('LOCATION_DELETED', {
         locationId: id,
         locationName: location?.name || 'Unknown Location'
@@ -642,15 +460,14 @@ export function InventoryProvider({ children }) {
         .single();
 
       if (error) throw error;
-      dispatch({ type: 'ADD_CATEGORY', payload: data });
 
-      // Log transaction
+      dispatch({ type: 'ADD_CATEGORY', payload: data });
       await logTransaction('CATEGORY_ADDED', {
         categoryId: data.id,
         categoryName: data.name,
         description: data.description
       });
-
+      
       return data;
     } catch (error) {
       console.error('Error adding category:', error);
@@ -668,15 +485,14 @@ export function InventoryProvider({ children }) {
         .single();
 
       if (error) throw error;
-      dispatch({ type: 'UPDATE_CATEGORY', payload: data });
 
-      // Log transaction
+      dispatch({ type: 'UPDATE_CATEGORY', payload: data });
       await logTransaction('CATEGORY_UPDATED', {
         categoryId: data.id,
         categoryName: data.name,
         changes: categoryData
       });
-
+      
       return data;
     } catch (error) {
       console.error('Error updating category:', error);
@@ -687,15 +503,15 @@ export function InventoryProvider({ children }) {
   const deleteCategory = async (id) => {
     try {
       const category = state.categories.find(cat => cat.id === id);
+      
       const { error } = await supabase
         .from('categories_fyngan_2024')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
-      dispatch({ type: 'DELETE_CATEGORY', payload: id });
 
-      // Log transaction
+      dispatch({ type: 'DELETE_CATEGORY', payload: id });
       await logTransaction('CATEGORY_DELETED', {
         categoryId: id,
         categoryName: category?.name || 'Unknown Category'
@@ -715,9 +531,8 @@ export function InventoryProvider({ children }) {
         .single();
 
       if (error) throw error;
-      dispatch({ type: 'ADD_SUPPLIER', payload: data });
 
-      // Log transaction
+      dispatch({ type: 'ADD_SUPPLIER', payload: data });
       await logTransaction('SUPPLIER_ADDED', {
         supplierId: data.id,
         supplierName: data.name,
@@ -725,7 +540,7 @@ export function InventoryProvider({ children }) {
         email: data.email,
         phone: data.phone
       });
-
+      
       return data;
     } catch (error) {
       console.error('Error adding supplier:', error);
@@ -743,15 +558,14 @@ export function InventoryProvider({ children }) {
         .single();
 
       if (error) throw error;
-      dispatch({ type: 'UPDATE_SUPPLIER', payload: data });
 
-      // Log transaction
+      dispatch({ type: 'UPDATE_SUPPLIER', payload: data });
       await logTransaction('SUPPLIER_UPDATED', {
         supplierId: data.id,
         supplierName: data.name,
         changes: supplierData
       });
-
+      
       return data;
     } catch (error) {
       console.error('Error updating supplier:', error);
@@ -762,15 +576,15 @@ export function InventoryProvider({ children }) {
   const deleteSupplier = async (id) => {
     try {
       const supplier = state.suppliers.find(sup => sup.id === id);
+      
       const { error } = await supabase
         .from('suppliers_fyngan_2024')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
-      dispatch({ type: 'DELETE_SUPPLIER', payload: id });
 
-      // Log transaction
+      dispatch({ type: 'DELETE_SUPPLIER', payload: id });
       await logTransaction('SUPPLIER_DELETED', {
         supplierId: id,
         supplierName: supplier?.name || 'Unknown Supplier'
@@ -794,9 +608,8 @@ export function InventoryProvider({ children }) {
         .single();
 
       if (error) throw error;
-      dispatch({ type: 'ADD_ITEM', payload: data });
 
-      // Log transaction
+      dispatch({ type: 'ADD_ITEM', payload: data });
       await logTransaction('ITEM_ADDED', {
         itemId: data.id,
         itemName: data.name,
@@ -806,7 +619,7 @@ export function InventoryProvider({ children }) {
         minStock: data.min_stock,
         maxStock: data.max_stock
       });
-
+      
       return data;
     } catch (error) {
       console.error('Error adding item:', error);
@@ -828,9 +641,8 @@ export function InventoryProvider({ children }) {
         .single();
 
       if (error) throw error;
-      dispatch({ type: 'UPDATE_ITEM', payload: data });
 
-      // Log transaction
+      dispatch({ type: 'UPDATE_ITEM', payload: data });
       await logTransaction('ITEM_UPDATED', {
         itemId: data.id,
         itemName: data.name,
@@ -838,7 +650,7 @@ export function InventoryProvider({ children }) {
         supplierName: data.supplier?.name || 'Unknown Supplier',
         changes: itemData
       });
-
+      
       return data;
     } catch (error) {
       console.error('Error updating item:', error);
@@ -849,15 +661,15 @@ export function InventoryProvider({ children }) {
   const deleteItem = async (id) => {
     try {
       const item = state.items.find(item => item.id === id);
+      
       const { error } = await supabase
         .from('items_fyngan_2024')
         .delete()
         .eq('id', id);
 
       if (error) throw error;
-      dispatch({ type: 'DELETE_ITEM', payload: id });
 
-      // Log transaction
+      dispatch({ type: 'DELETE_ITEM', payload: id });
       await logTransaction('ITEM_DELETED', {
         itemId: id,
         itemName: item?.name || 'Unknown Item'
@@ -893,12 +705,13 @@ export function InventoryProvider({ children }) {
         )
         .select(`
           *,
-          item:items_fyngan_2024(name,unit),
+          item:items_fyngan_2024(name, unit),
           location:locations_fyngan_2024(name)
         `)
         .single();
 
       if (error) throw error;
+
       dispatch({ type: 'UPDATE_STOCK_LEVEL', payload: data });
 
       // Log transaction
@@ -938,19 +751,17 @@ export function InventoryProvider({ children }) {
         .single();
 
       if (error) {
-        // If the table doesn't exist, this is likely the first run
         if (error.message && error.message.includes('does not exist')) {
-          console.log('Transactions table does not exist yet, skipping transaction logging');
+          console.log('⚠️ Transactions table does not exist yet, skipping transaction logging');
           return null;
         }
         throw error;
       }
-      
+
       dispatch({ type: 'ADD_TRANSACTION', payload: data });
       return data;
     } catch (error) {
-      console.error('Error logging transaction:', error);
-      // Don't throw error for transaction logging failures
+      console.error('⚠️ Error logging transaction:', error);
       return null;
     }
   };
@@ -958,6 +769,7 @@ export function InventoryProvider({ children }) {
   // Utility functions
   const getStockAlerts = () => {
     const alerts = [];
+    
     state.items.forEach(item => {
       const totalStock = state.stockLevels
         .filter(stock => stock.item_id === item.id)
@@ -974,6 +786,7 @@ export function InventoryProvider({ children }) {
         });
       }
     });
+
     return alerts;
   };
 
@@ -999,6 +812,7 @@ export function InventoryProvider({ children }) {
   const value = {
     ...state,
     dispatch,
+    
     // CRUD operations
     addLocation,
     updateLocation,
@@ -1013,12 +827,14 @@ export function InventoryProvider({ children }) {
     updateItem,
     deleteItem,
     updateStockLevel,
+    
     // Utility functions
     getStockAlerts,
     getLocationStock,
     getItemStock,
     getTotalStock,
     formatQuantity,
+    
     // Refresh functions
     loadLocations,
     loadCategories,
@@ -1026,7 +842,7 @@ export function InventoryProvider({ children }) {
     loadItems,
     loadStockLevels,
     loadTransactions,
-    createTables
+    refreshAllData
   };
 
   return (
