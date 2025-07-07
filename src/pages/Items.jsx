@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useInventory } from '../context/InventoryContext';
 import Modal from '../components/Modal';
+import StockLevelIndicator from '../components/StockLevelIndicator';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 
@@ -32,7 +33,18 @@ const UNIT_OPTIONS = [
 ];
 
 export default function Items() {
-  const { items, categories, suppliers, isLoading, addItem, updateItem, deleteItem, formatQuantity } = useInventory();
+  const { 
+    items, 
+    categories, 
+    suppliers, 
+    isLoading, 
+    addItem, 
+    updateItem, 
+    deleteItem,
+    getTotalStock,
+    formatQuantity
+  } = useInventory();
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [formData, setFormData] = useState({
@@ -55,7 +67,7 @@ export default function Items() {
         min_stock: parseFloat(formData.min_stock),
         max_stock: parseFloat(formData.max_stock)
       };
-
+      
       if (editingItem) {
         await updateItem(editingItem.id, itemData);
       } else {
@@ -119,6 +131,17 @@ export default function Items() {
     return unit ? unit.label : unitValue;
   };
 
+  // Enhanced items with stock data
+  const itemsWithStock = items.map(item => ({
+    ...item,
+    currentStock: getTotalStock(item.id)
+  })).sort((a, b) => {
+    // Sort by stock status (critical first)
+    const aStatus = a.currentStock === 0 ? 0 : a.currentStock <= a.min_stock ? 1 : 2;
+    const bStatus = b.currentStock === 0 ? 0 : b.currentStock <= b.min_stock ? 1 : 2;
+    return aStatus - bStatus;
+  });
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -137,10 +160,10 @@ export default function Items() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Items</h1>
-          <p className="text-gray-600">Manage your inventory items</p>
+          <p className="text-gray-600">Manage your inventory items with real-time stock levels</p>
         </div>
-        <button
-          onClick={() => setIsModalOpen(true)}
+        <button 
+          onClick={() => setIsModalOpen(true)} 
           className="flex items-center space-x-2 bg-coffee-600 text-white px-4 py-2 rounded-md hover:bg-coffee-700 transition-colors"
         >
           <SafeIcon icon={FiPlus} />
@@ -149,7 +172,7 @@ export default function Items() {
       </div>
 
       <div className="bg-white rounded-lg shadow-md">
-        {items.length === 0 ? (
+        {itemsWithStock.length === 0 ? (
           <div className="p-8 text-center">
             <SafeIcon icon={FiPackage} className="text-gray-400 text-4xl mb-4 mx-auto" />
             <p className="text-gray-500">No items found. Add your first item to get started.</p>
@@ -166,13 +189,13 @@ export default function Items() {
                     Category
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Supplier
+                    Stock Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Unit
+                    Current Stock
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Min/Max Stock
+                    Min/Max Levels
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -180,7 +203,7 @@ export default function Items() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {items.map((item, index) => (
+                {itemsWithStock.map((item, index) => (
                   <motion.tr
                     key={item.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -191,17 +214,31 @@ export default function Items() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <SafeIcon icon={FiPackage} className="text-coffee-600 mr-3" />
-                        <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{item.name}</div>
+                          <div className="text-xs text-gray-500">{getUnitLabel(item.unit)}</div>
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{getCategoryName(item.category_id)}</div>
+                      <div className="text-xs text-gray-500">{getSupplierName(item.supplier_id)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{getSupplierName(item.supplier_id)}</div>
+                      <div className="w-32">
+                        <StockLevelIndicator
+                          currentStock={item.currentStock}
+                          minStock={item.min_stock}
+                          maxStock={item.max_stock}
+                          unit={item.unit}
+                          size="sm"
+                        />
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{getUnitLabel(item.unit)}</div>
+                      <div className="text-sm font-bold text-gray-900">
+                        {formatQuantity(item.currentStock)} {item.unit}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
@@ -210,14 +247,14 @@ export default function Items() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-2">
-                        <button
-                          onClick={() => handleEdit(item)}
+                        <button 
+                          onClick={() => handleEdit(item)} 
                           className="text-coffee-600 hover:text-coffee-900 p-1"
                         >
                           <SafeIcon icon={FiEdit2} />
                         </button>
-                        <button
-                          onClick={() => handleDelete(item.id)}
+                        <button 
+                          onClick={() => handleDelete(item.id)} 
                           className="text-red-600 hover:text-red-900 p-1"
                         >
                           <SafeIcon icon={FiTrash2} />
@@ -232,8 +269,8 @@ export default function Items() {
         )}
       </div>
 
-      <Modal
-        isOpen={isModalOpen}
+      <Modal 
+        isOpen={isModalOpen} 
         onClose={() => {
           setIsModalOpen(false);
           setEditingItem(null);
@@ -253,8 +290,8 @@ export default function Items() {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Item Name
             </label>
-            <input
-              type="text"
+            <input 
+              type="text" 
               required
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -262,12 +299,12 @@ export default function Items() {
               placeholder="Enter item name"
             />
           </div>
-
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Category
             </label>
-            <select
+            <select 
               required
               value={formData.category_id}
               onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
@@ -281,12 +318,12 @@ export default function Items() {
               ))}
             </select>
           </div>
-
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Supplier
             </label>
-            <select
+            <select 
               required
               value={formData.supplier_id}
               onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
@@ -300,12 +337,12 @@ export default function Items() {
               ))}
             </select>
           </div>
-
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Unit of Measurement
             </label>
-            <select
+            <select 
               required
               value={formData.unit}
               onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
@@ -319,14 +356,14 @@ export default function Items() {
               ))}
             </select>
           </div>
-
+          
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Minimum Stock
               </label>
-              <input
-                type="number"
+              <input 
+                type="number" 
                 step="0.01"
                 required
                 min="0"
@@ -340,8 +377,8 @@ export default function Items() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Maximum Stock
               </label>
-              <input
-                type="number"
+              <input 
+                type="number" 
                 step="0.01"
                 required
                 min="0"
@@ -352,9 +389,9 @@ export default function Items() {
               />
             </div>
           </div>
-
+          
           <div className="flex justify-end space-x-3 pt-4">
-            <button
+            <button 
               type="button"
               onClick={() => {
                 setIsModalOpen(false);
@@ -372,7 +409,7 @@ export default function Items() {
             >
               Cancel
             </button>
-            <button
+            <button 
               type="submit"
               disabled={submitting}
               className="px-4 py-2 text-sm font-medium text-white bg-coffee-600 rounded-md hover:bg-coffee-700 transition-colors disabled:opacity-50"
