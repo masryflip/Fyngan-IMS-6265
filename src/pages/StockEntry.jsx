@@ -10,18 +10,18 @@ const {
   FiMapPin, 
   FiInfo, 
   FiRefreshCw, 
-  FiGrid,
-  FiChevronDown,
-  FiChevronUp,
-  FiAlertTriangle,
-  FiCheckCircle,
-  FiAlertCircle
+  FiGrid, 
+  FiChevronDown, 
+  FiChevronUp, 
+  FiAlertTriangle, 
+  FiCheckCircle, 
+  FiAlertCircle 
 } = FiIcons;
 
 export default function StockEntry() {
   const { 
     items, 
-    categories,
+    categories, 
     locations, 
     stockLevels, 
     isLoading, 
@@ -34,15 +34,33 @@ export default function StockEntry() {
   const [saving, setSaving] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState({});
 
+  // Function to get current stock for an item at a location
+  const getCurrentStock = (itemId, locationId) => {
+    const stock = stockLevels.find(
+      s => s.item_id === itemId && s.location_id === locationId
+    );
+    return stock ? parseFloat(stock.quantity) : 0;
+  };
+
   // Group items by category with enhanced data
   const categorizedItems = useMemo(() => {
+    if (!selectedLocation || !items.length || !categories.length) {
+      return [];
+    }
+
+    console.log("Generating categorized items with:", {
+      itemsCount: items.length,
+      categoriesCount: categories.length,
+      selectedLocation
+    });
+
     const grouped = {};
     
     categories.forEach(category => {
       const categoryItems = items
         .filter(item => item.category_id === category.id)
         .map(item => {
-          const currentStock = selectedLocation ? getCurrentStock(item.id, selectedLocation) : 0;
+          const currentStock = getCurrentStock(item.id, selectedLocation);
           const stockPercentage = item.max_stock > 0 ? (currentStock / item.max_stock) * 100 : 0;
           
           let stockStatus = 'good';
@@ -60,7 +78,13 @@ export default function StockEntry() {
         })
         .sort((a, b) => {
           // Sort by urgency within category
-          const urgencyOrder = { 'out': 0, 'critical': 1, 'low': 2, 'good': 3, 'high': 4 };
+          const urgencyOrder = {
+            'out': 0,
+            'critical': 1,
+            'low': 2,
+            'good': 3,
+            'high': 4
+          };
           return urgencyOrder[a.stockStatus] - urgencyOrder[b.stockStatus];
         });
 
@@ -93,7 +117,7 @@ export default function StockEntry() {
       setStockUpdates(prev => ({ ...prev, [itemId]: '' }));
       return;
     }
-
+    
     // Parse as float to support decimals
     const numValue = parseFloat(value);
     if (!isNaN(numValue) && numValue >= 0) {
@@ -106,21 +130,21 @@ export default function StockEntry() {
       alert('Please select a location first');
       return;
     }
-
+    
     const validUpdates = Object.entries(stockUpdates).filter(
       ([_, quantity]) => quantity !== '' && !isNaN(quantity) && parseFloat(quantity) >= 0
     );
-
+    
     if (validUpdates.length === 0) {
       alert('Please enter valid stock quantities');
       return;
     }
-
+    
     setSaving(true);
     try {
       // Update all stock levels
       await Promise.all(
-        validUpdates.map(([itemId, quantity]) =>
+        validUpdates.map(([itemId, quantity]) => 
           updateStockLevel(itemId, selectedLocation, parseFloat(quantity))
         )
       );
@@ -132,11 +156,6 @@ export default function StockEntry() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const getCurrentStock = (itemId, locationId) => {
-    const stock = stockLevels.find(s => s.item_id === itemId && s.location_id === locationId);
-    return stock ? parseFloat(stock.quantity) : 0;
   };
 
   const toggleCategory = (categoryId) => {
@@ -269,142 +288,181 @@ export default function StockEntry() {
               </div>
             </div>
 
-            {/* Categorized Items */}
-            <div className="space-y-6">
-              {categorizedItems.map((category, categoryIndex) => (
-                <motion.div
-                  key={category.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: categoryIndex * 0.1 }}
-                  className="border border-gray-200 rounded-lg overflow-hidden"
-                >
-                  {/* Category Header */}
-                  <div 
-                    className={`p-4 cursor-pointer ${getCategoryHeaderColor(category)} border-b`}
-                    onClick={() => toggleCategory(category.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <SafeIcon icon={FiGrid} className="text-lg" />
-                        <div>
-                          <h3 className="font-semibold text-lg">{category.name}</h3>
-                          <p className="text-sm opacity-80">
-                            {category.totalItems} items • 
-                            {category.needsAttention > 0 && (
-                              <span className="font-medium"> {category.needsAttention} need attention</span>
-                            )}
-                            {category.needsAttention === 0 && <span> All items OK</span>}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        {/* Alert badges */}
-                        {category.outOfStock > 0 && (
-                          <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded-full">
-                            {category.outOfStock} OUT
-                          </span>
-                        )}
-                        {category.critical > 0 && (
-                          <span className="px-2 py-1 bg-orange-600 text-white text-xs font-bold rounded-full">
-                            {category.critical} CRITICAL
-                          </span>
-                        )}
-                        {category.low > 0 && (
-                          <span className="px-2 py-1 bg-yellow-600 text-white text-xs font-bold rounded-full">
-                            {category.low} LOW
-                          </span>
-                        )}
-                        <SafeIcon 
-                          icon={collapsedCategories[category.id] ? FiChevronDown : FiChevronUp} 
-                          className="text-xl"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Category Items */}
-                  {!collapsedCategories[category.id] && (
-                    <div className="p-4 bg-white">
-                      <div className="space-y-3">
-                        {category.items.map((item, itemIndex) => (
-                          <motion.div
-                            key={item.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: (categoryIndex * 0.1) + (itemIndex * 0.05) }}
-                            className={`flex items-center justify-between p-4 border rounded-lg transition-all hover:shadow-md ${
-                              item.stockStatus === 'out' ? 'border-red-200 bg-red-50' :
-                              item.stockStatus === 'critical' ? 'border-orange-200 bg-orange-50' :
-                              item.stockStatus === 'low' ? 'border-yellow-200 bg-yellow-50' :
-                              'border-gray-200 bg-gray-50'
-                            }`}
-                          >
-                            <div className="flex items-center space-x-4 flex-1">
-                              <SafeIcon 
-                                icon={getStockStatusIcon(item.stockStatus)} 
-                                className={`text-lg ${getStockStatusColor(item.stockStatus)}`}
-                              />
-                              <div className="flex-1">
-                                <h4 className="font-medium text-gray-900">{item.name}</h4>
-                                <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
-                                  <span>
-                                    Current: <span className="font-medium">{formatQuantity(item.currentStock)} {item.unit}</span>
-                                  </span>
-                                  <span>
-                                    Min: {formatQuantity(item.min_stock)} | Max: {formatQuantity(item.max_stock)} {item.unit}
-                                  </span>
-                                  {item.stockStatus !== 'good' && item.stockStatus !== 'high' && (
-                                    <span className={`font-medium ${getStockStatusColor(item.stockStatus)}`}>
-                                      {item.stockStatus === 'out' ? 'OUT OF STOCK' :
-                                       item.stockStatus === 'critical' ? 'CRITICAL' :
-                                       'LOW STOCK'}
-                                    </span>
-                                  )}
-                                </div>
-                                {/* Visual stock bar */}
-                                <div className="w-48 bg-gray-200 rounded-full h-2 mt-2">
-                                  <div 
-                                    className={`h-2 rounded-full transition-all ${
-                                      item.stockStatus === 'out' ? 'bg-red-500' :
-                                      item.stockStatus === 'critical' ? 'bg-orange-500' :
-                                      item.stockStatus === 'low' ? 'bg-yellow-500' :
-                                      item.stockStatus === 'high' ? 'bg-blue-500' :
-                                      'bg-green-500'
-                                    }`}
-                                    style={{ width: `${Math.min(item.stockPercentage, 100)}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                placeholder="New quantity"
-                                value={stockUpdates[item.id] || ''}
-                                onChange={(e) => handleStockChange(item.id, e.target.value)}
-                                className="w-28 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-coffee-500 text-center font-medium"
-                              />
-                              <span className="text-sm text-gray-500 min-w-[3rem]">{item.unit}</span>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-
-            {categorizedItems.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <SafeIcon icon={FiPackage} className="text-4xl mb-4 mx-auto" />
-                <p>No items found for this location. Add some items first.</p>
+            {/* Debug Information */}
+            {process.env.NODE_ENV !== 'production' && (
+              <div className="mb-6 p-4 bg-gray-100 rounded-lg">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Debug Info</h3>
+                <div className="text-xs text-gray-600 space-y-1">
+                  <p>Items: {items.length}</p>
+                  <p>Categories: {categories.length}</p>
+                  <p>Selected Location: {selectedLocation}</p>
+                  <p>Stock Levels: {stockLevels.length}</p>
+                  <p>Categorized Items: {JSON.stringify(categorizedItems.length)}</p>
+                </div>
               </div>
             )}
+
+            {/* Categorized Items */}
+            <div className="space-y-6">
+              {categorizedItems.length > 0 ? (
+                categorizedItems.map((category, categoryIndex) => (
+                  <motion.div
+                    key={category.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: categoryIndex * 0.1 }}
+                    className="border border-gray-200 rounded-lg overflow-hidden"
+                  >
+                    {/* Category Header */}
+                    <div
+                      className={`p-4 cursor-pointer ${getCategoryHeaderColor(category)} border-b`}
+                      onClick={() => toggleCategory(category.id)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <SafeIcon icon={FiGrid} className="text-lg" />
+                          <div>
+                            <h3 className="font-semibold text-lg">{category.name}</h3>
+                            <p className="text-sm opacity-80">
+                              {category.totalItems} items •{' '}
+                              {category.needsAttention > 0 && (
+                                <span className="font-medium">
+                                  {category.needsAttention} need attention
+                                </span>
+                              )}
+                              {category.needsAttention === 0 && <span> All items OK</span>}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          {/* Alert badges */}
+                          {category.outOfStock > 0 && (
+                            <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded-full">
+                              {category.outOfStock} OUT
+                            </span>
+                          )}
+                          {category.critical > 0 && (
+                            <span className="px-2 py-1 bg-orange-600 text-white text-xs font-bold rounded-full">
+                              {category.critical} CRITICAL
+                            </span>
+                          )}
+                          {category.low > 0 && (
+                            <span className="px-2 py-1 bg-yellow-600 text-white text-xs font-bold rounded-full">
+                              {category.low} LOW
+                            </span>
+                          )}
+                          <SafeIcon
+                            icon={collapsedCategories[category.id] ? FiChevronDown : FiChevronUp}
+                            className="text-xl"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Category Items */}
+                    {!collapsedCategories[category.id] && (
+                      <div className="p-4 bg-white">
+                        <div className="space-y-3">
+                          {category.items.map((item, itemIndex) => (
+                            <motion.div
+                              key={item.id}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: (categoryIndex * 0.1) + (itemIndex * 0.05) }}
+                              className={`flex items-center justify-between p-4 border rounded-lg transition-all hover:shadow-md ${
+                                item.stockStatus === 'out' ? 'border-red-200 bg-red-50' :
+                                item.stockStatus === 'critical' ? 'border-orange-200 bg-orange-50' :
+                                item.stockStatus === 'low' ? 'border-yellow-200 bg-yellow-50' :
+                                'border-gray-200 bg-gray-50'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-4 flex-1">
+                                <SafeIcon
+                                  icon={getStockStatusIcon(item.stockStatus)}
+                                  className={`text-lg ${getStockStatusColor(item.stockStatus)}`}
+                                />
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-gray-900">{item.name}</h4>
+                                  <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
+                                    <span>
+                                      Current: <span className="font-medium">{formatQuantity(item.currentStock)} {item.unit}</span>
+                                    </span>
+                                    <span>
+                                      Min: {formatQuantity(item.min_stock)} | Max: {formatQuantity(item.max_stock)} {item.unit}
+                                    </span>
+                                    {item.stockStatus !== 'good' && item.stockStatus !== 'high' && (
+                                      <span className={`font-medium ${getStockStatusColor(item.stockStatus)}`}>
+                                        {item.stockStatus === 'out' ? 'OUT OF STOCK' : 
+                                         item.stockStatus === 'critical' ? 'CRITICAL' : 'LOW STOCK'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {/* Visual stock bar */}
+                                  <div className="w-48 bg-gray-200 rounded-full h-2 mt-2">
+                                    <div
+                                      className={`h-2 rounded-full transition-all ${
+                                        item.stockStatus === 'out' ? 'bg-red-500' :
+                                        item.stockStatus === 'critical' ? 'bg-orange-500' :
+                                        item.stockStatus === 'low' ? 'bg-yellow-500' :
+                                        item.stockStatus === 'high' ? 'bg-blue-500' :
+                                        'bg-green-500'
+                                      }`}
+                                      style={{ width: `${Math.min(item.stockPercentage, 100)}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  placeholder="New quantity"
+                                  value={stockUpdates[item.id] || ''}
+                                  onChange={(e) => handleStockChange(item.id, e.target.value)}
+                                  className="w-28 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-coffee-500 text-center font-medium"
+                                />
+                                <span className="text-sm text-gray-500 min-w-[3rem]">{item.unit}</span>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                ))
+              ) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                  <SafeIcon icon={FiAlertCircle} className="text-yellow-600 text-4xl mb-4 mx-auto" />
+                  <h3 className="text-lg font-medium text-yellow-800 mb-2">No Items Found</h3>
+                  <p className="text-yellow-700 mb-4">
+                    There are no items associated with this location. 
+                    This could be because:
+                  </p>
+                  <ul className="text-sm text-yellow-700 list-disc list-inside mb-4 text-left max-w-md mx-auto">
+                    <li>No items have been added to the system yet</li>
+                    <li>No items have been assigned to categories</li>
+                    <li>The database connection may need to be refreshed</li>
+                  </ul>
+                  <div className="flex justify-center space-x-4">
+                    <a 
+                      href="#/items" 
+                      className="inline-flex items-center px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700"
+                    >
+                      <SafeIcon icon={FiPackage} className="mr-2" />
+                      Add Items
+                    </a>
+                    <a 
+                      href="#/categories" 
+                      className="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                    >
+                      <SafeIcon icon={FiGrid} className="mr-2" />
+                      Manage Categories
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
