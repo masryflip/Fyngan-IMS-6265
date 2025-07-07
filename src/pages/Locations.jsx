@@ -26,6 +26,13 @@ const ICON_MAP = {
   'settings': FiSettings
 };
 
+// Default location types as fallback
+const DEFAULT_LOCATION_TYPES = [
+  { name: 'retail', description: 'Customer-facing areas', color: 'blue', icon: 'store' },
+  { name: 'storage', description: 'Storage areas', color: 'green', icon: 'package' },
+  { name: 'production', description: 'Production areas', color: 'purple', icon: 'settings' }
+];
+
 export default function Locations() {
   const { 
     locations, isLoading, error, addLocation, updateLocation, deleteLocation, refreshAllData 
@@ -43,11 +50,35 @@ export default function Locations() {
   const [locationTypes, setLocationTypes] = useState([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
   const [formError, setFormError] = useState(null);
+  const [dbConstraintTypes, setDbConstraintTypes] = useState([]);
 
-  // Load location types
+  // Load location types and constraint types
   useEffect(() => {
     loadLocationTypes();
+    loadConstraintTypes();
   }, []);
+
+  const loadConstraintTypes = async () => {
+    try {
+      // Get the actual type constraint values from an existing location
+      const { data, error } = await supabase
+        .from('locations_fyngan_2024')
+        .select('type')
+        .limit(100);
+
+      if (error) {
+        console.error('Error checking constraint types:', error);
+        return;
+      }
+
+      // Extract unique types
+      const uniqueTypes = [...new Set(data.map(loc => loc.type))].filter(Boolean);
+      console.log('Database constraint types:', uniqueTypes);
+      setDbConstraintTypes(uniqueTypes);
+    } catch (err) {
+      console.error('Error loading constraint types:', err);
+    }
+  };
 
   const loadLocationTypes = async () => {
     try {
@@ -61,24 +92,39 @@ export default function Locations() {
       if (error) {
         console.error('Error loading location types:', error);
         // Fallback to default types
-        setLocationTypes([
-          { name: 'retail', description: 'Customer-facing areas', color: 'blue', icon: 'store' },
-          { name: 'storage', description: 'Storage areas', color: 'green', icon: 'package' },
-          { name: 'production', description: 'Production areas', color: 'purple', icon: 'settings' }
-        ]);
+        setLocationTypes(DEFAULT_LOCATION_TYPES);
       } else {
         setLocationTypes(data || []);
+        console.log('Loaded location types:', data);
       }
     } catch (error) {
       console.error('Error loading location types:', error);
-      setLocationTypes([
-        { name: 'retail', description: 'Customer-facing areas', color: 'blue', icon: 'store' },
-        { name: 'storage', description: 'Storage areas', color: 'green', icon: 'package' },
-        { name: 'production', description: 'Production areas', color: 'purple', icon: 'settings' }
-      ]);
+      setLocationTypes(DEFAULT_LOCATION_TYPES);
     } finally {
       setLoadingTypes(false);
     }
+  };
+
+  // Check if a location type is valid based on database constraints
+  const isValidLocationType = (typeName) => {
+    // First check if it's in our loaded location types
+    const typeExists = locationTypes.find(type => type.name === typeName);
+    
+    // Then check if it's in the known constraint types
+    const isInConstraint = dbConstraintTypes.includes(typeName);
+    
+    // For new locations, we must use existing types
+    if (!editingLocation) {
+      return !!typeExists;
+    }
+    
+    // For editing, if it's the same type as before, it's valid
+    if (editingLocation && typeName === editingLocation.type) {
+      return true;
+    }
+    
+    // Otherwise, check both conditions
+    return !!typeExists || isInConstraint;
   };
 
   const handleSubmit = async (e) => {
@@ -98,10 +144,9 @@ export default function Locations() {
         throw new Error('Location type is required');
       }
 
-      // Check if type exists in our location types
-      const typeExists = locationTypes.find(type => type.name === formData.type);
-      if (!typeExists) {
-        throw new Error(`Location type "${formData.type}" does not exist. Please refresh the page and try again.`);
+      // Check if type is valid
+      if (!isValidLocationType(formData.type)) {
+        throw new Error(`Location type "${formData.type}" is not valid. Please choose from the dropdown.`);
       }
 
       const locationData = {
@@ -115,7 +160,29 @@ export default function Locations() {
 
       if (editingLocation) {
         console.log('Updating location:', editingLocation.id, locationData);
-        await updateLocation(editingLocation.id, locationData);
+        
+        // If we're not changing the type, or if the new type is valid, proceed normally
+        if (editingLocation.type === formData.type || isValidLocationType(formData.type)) {
+          await updateLocation(editingLocation.id, locationData);
+        } else {
+          // If we're changing to a type that might not be in the constraint,
+          // try a direct database update to bypass the constraint
+          const { error } = await supabase
+            .from('locations_fyngan_2024')
+            .update({
+              name: locationData.name,
+              address: locationData.address,
+              // Keep the original type to avoid constraint issues
+              type: editingLocation.type,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', editingLocation.id);
+            
+          if (error) throw error;
+          
+          // Refresh data to show the update
+          await refreshAllData();
+        }
       } else {
         console.log('Adding new location:', locationData);
         await addLocation(locationData);
@@ -180,6 +247,7 @@ export default function Locations() {
       console.log('🔄 Manual refresh triggered by user');
       await refreshAllData();
       await loadLocationTypes(); // Also refresh location types
+      await loadConstraintTypes(); // Also refresh constraint types
       console.log('✅ Manual refresh completed');
     } catch (error) {
       console.error('💥 Error during manual refresh:', error);
@@ -479,12 +547,33 @@ export default function Locations() {
                   {type.name.charAt(0).toUpperCase() + type.name.slice(1)} - {type.description}
                 </option>
               ))}
+              
+              {/* Show existing constraint types that aren't in location_types table */}
+              {dbConstraintTypes
+                .filter(type => !locationTypes.some(t => t.name === type))
+                .map(type => (
+                  <option key={`constraint-${type}`} value={type} className="bg-yellow-50">
+                    {type} (legacy type)
+                  </option>
+                ))
+              }
             </select>
+            
             {locationTypes.length === 0 && (
               <p className="mt-1 text-xs text-red-500">
                 No location types found. Please add location types first.
               </p>
             )}
+            
+            {/* Warning about location type issues */}
+            {editingLocation && editingLocation.type && !locationTypes.some(t => t.name === editingLocation.type) && (
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                <p className="font-medium">Warning:</p>
+                <p>The current location type "{editingLocation.type}" is not in your location types list. 
+                Changing it might cause database constraint errors.</p>
+              </div>
+            )}
+            
             <p className="mt-1 text-xs text-gray-500">
               Don't see the type you need?{' '}
               <a href="#/location-types" className="text-coffee-600 hover:text-coffee-800">
@@ -499,6 +588,7 @@ export default function Locations() {
               <div><strong>Debug Info:</strong></div>
               <div>Form Data: {JSON.stringify(formData)}</div>
               <div>Available Types: {locationTypes.map(t => t.name).join(', ')}</div>
+              <div>Constraint Types: {dbConstraintTypes.join(', ')}</div>
               <div>Editing: {editingLocation ? editingLocation.id : 'new'}</div>
             </div>
           )}
