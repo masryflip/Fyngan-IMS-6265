@@ -48,6 +48,7 @@ export default function LocationTypes() {
     icon: 'map-pin'
   });
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   // Load location types
   useEffect(() => {
@@ -57,6 +58,8 @@ export default function LocationTypes() {
   const loadLocationTypes = async () => {
     try {
       setLoading(true);
+      setError(null);
+      
       const { data, error } = await supabase
         .from('location_types_fyngan_2024')
         .select('*')
@@ -65,13 +68,14 @@ export default function LocationTypes() {
 
       if (error) {
         console.error('Error loading location types:', error);
-        throw error;
+        setError(`Failed to load location types: ${error.message}`);
+        return;
       }
 
       setLocationTypes(data || []);
-    } catch (error) {
-      console.error('Error loading location types:', error);
-      alert('Error loading location types. Please try again.');
+    } catch (err) {
+      console.error('Error loading location types:', err);
+      setError(`Unexpected error: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -80,11 +84,28 @@ export default function LocationTypes() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    setError(null);
 
     try {
       if (editingType) {
+        // First, check if this name already exists (and it's not the same record)
+        if (formData.name !== editingType.name) {
+          const { data: existingType } = await supabase
+            .from('location_types_fyngan_2024')
+            .select('id')
+            .eq('name', formData.name)
+            .single();
+            
+          if (existingType) {
+            throw new Error(`A location type named "${formData.name}" already exists. Please use a different name.`);
+          }
+        }
+
+        // Store the old name before updating
+        const oldTypeName = editingType.name;
+        
         // Update existing type
-        const { data, error } = await supabase
+        const { data, error: updateError } = await supabase
           .from('location_types_fyngan_2024')
           .update({
             name: formData.name,
@@ -97,20 +118,41 @@ export default function LocationTypes() {
           .select()
           .single();
 
-        if (error) throw error;
+        if (updateError) throw updateError;
 
-        // Update locations that use this type name
-        await supabase
-          .from('locations_fyngan_2024')
-          .update({ type: formData.name })
-          .eq('type', editingType.name);
+        // Only update locations if the name has changed
+        if (oldTypeName !== formData.name) {
+          // Update locations that use this type name
+          const { error: locationsError } = await supabase
+            .from('locations_fyngan_2024')
+            .update({ type: formData.name })
+            .eq('type', oldTypeName);
+
+          if (locationsError) {
+            console.error('Warning: Failed to update locations with the new type name:', locationsError);
+            // Continue anyway - the type was updated successfully
+          }
+        }
 
         setLocationTypes(prev => 
           prev.map(type => type.id === editingType.id ? data : type)
         );
+        
+        alert('Location type updated successfully!');
       } else {
+        // Check if name already exists for new types
+        const { data: existingType } = await supabase
+          .from('location_types_fyngan_2024')
+          .select('id')
+          .eq('name', formData.name)
+          .single();
+          
+        if (existingType) {
+          throw new Error(`A location type named "${formData.name}" already exists. Please use a different name.`);
+        }
+        
         // Create new type
-        const { data, error } = await supabase
+        const { data, error: createError } = await supabase
           .from('location_types_fyngan_2024')
           .insert([{
             name: formData.name,
@@ -122,22 +164,19 @@ export default function LocationTypes() {
           .select()
           .single();
 
-        if (error) throw error;
+        if (createError) throw createError;
 
         setLocationTypes(prev => [...prev, data]);
+        alert('Location type created successfully!');
       }
 
       setIsModalOpen(false);
       setEditingType(null);
       setFormData({ name: '', description: '', color: 'blue', icon: 'map-pin' });
-      alert(editingType ? 'Location type updated successfully!' : 'Location type created successfully!');
-    } catch (error) {
-      console.error('Error saving location type:', error);
-      if (error.code === '23505') {
-        alert('A location type with this name already exists.');
-      } else {
-        alert('Error saving location type. Please try again.');
-      }
+    } catch (err) {
+      console.error('Error saving location type:', err);
+      setError(err.message);
+      alert(`Error: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -152,6 +191,7 @@ export default function LocationTypes() {
       icon: type.icon
     });
     setIsModalOpen(true);
+    setError(null);
   };
 
   const handleDelete = async (type) => {
@@ -182,6 +222,7 @@ export default function LocationTypes() {
     }
 
     try {
+      setError(null);
       const { error } = await supabase
         .from('location_types_fyngan_2024')
         .delete()
@@ -191,9 +232,10 @@ export default function LocationTypes() {
 
       setLocationTypes(prev => prev.filter(t => t.id !== type.id));
       alert('Location type deleted successfully!');
-    } catch (error) {
-      console.error('Error deleting location type:', error);
-      alert('Error deleting location type. Please try again.');
+    } catch (err) {
+      console.error('Error deleting location type:', err);
+      setError(`Failed to delete: ${err.message}`);
+      alert(`Error deleting location type: ${err.message}`);
     }
   };
 
@@ -228,13 +270,31 @@ export default function LocationTypes() {
           <p className="text-gray-600">Manage the types of locations in your inventory system</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setIsModalOpen(true);
+            setError(null);
+            setEditingType(null);
+            setFormData({ name: '', description: '', color: 'blue', icon: 'map-pin' });
+          }}
           className="flex items-center space-x-2 bg-coffee-600 text-white px-4 py-2 rounded-md hover:bg-coffee-700 transition-colors"
         >
           <SafeIcon icon={FiPlus} />
           <span>Add Location Type</span>
         </button>
       </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+          <div className="flex">
+            <SafeIcon icon={FiIcons.FiAlertTriangle} className="text-red-500 mt-1 mr-2" />
+            <div>
+              <p className="font-medium">Error</p>
+              <p className="text-sm">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Location Types Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -322,9 +382,16 @@ export default function LocationTypes() {
           setIsModalOpen(false);
           setEditingType(null);
           setFormData({ name: '', description: '', color: 'blue', icon: 'map-pin' });
+          setError(null);
         }}
         title={editingType ? 'Edit Location Type' : 'Add New Location Type'}
       >
+        {error && (
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+            {error}
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -418,6 +485,7 @@ export default function LocationTypes() {
                 setIsModalOpen(false);
                 setEditingType(null);
                 setFormData({ name: '', description: '', color: 'blue', icon: 'map-pin' });
+                setError(null);
               }}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             >
