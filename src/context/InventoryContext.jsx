@@ -30,7 +30,6 @@ function inventoryReducer(state, action) {
       return { ...state, isOnline: action.payload };
     case 'SET_INITIALIZED':
       return { ...state, isInitialized: true };
-
     case 'SET_LOCATIONS':
       console.log('Setting locations in context:', action.payload);
       return { ...state, locations: action.payload };
@@ -49,7 +48,6 @@ function inventoryReducer(state, action) {
     case 'SET_TRANSACTIONS':
       console.log('Setting transactions in context:', action.payload);
       return { ...state, transactions: action.payload };
-
     case 'ADD_LOCATION':
       return { ...state, locations: [...state.locations, action.payload] };
     case 'UPDATE_LOCATION':
@@ -65,7 +63,6 @@ function inventoryReducer(state, action) {
         locations: state.locations.filter(loc => loc.id !== action.payload),
         stockLevels: state.stockLevels.filter(stock => stock.location_id !== action.payload)
       };
-
     case 'ADD_CATEGORY':
       return { ...state, categories: [...state.categories, action.payload] };
     case 'UPDATE_CATEGORY':
@@ -80,7 +77,6 @@ function inventoryReducer(state, action) {
         ...state,
         categories: state.categories.filter(cat => cat.id !== action.payload)
       };
-
     case 'ADD_SUPPLIER':
       return { ...state, suppliers: [...state.suppliers, action.payload] };
     case 'UPDATE_SUPPLIER':
@@ -95,7 +91,6 @@ function inventoryReducer(state, action) {
         ...state,
         suppliers: state.suppliers.filter(sup => sup.id !== action.payload)
       };
-
     case 'ADD_ITEM':
       return { ...state, items: [...state.items, action.payload] };
     case 'UPDATE_ITEM':
@@ -111,12 +106,12 @@ function inventoryReducer(state, action) {
         items: state.items.filter(item => item.id !== action.payload),
         stockLevels: state.stockLevels.filter(stock => stock.item_id !== action.payload)
       };
-
     case 'ADD_STOCK_LEVEL':
       return { ...state, stockLevels: [...state.stockLevels, action.payload] };
     case 'UPDATE_STOCK_LEVEL':
       const existingIndex = state.stockLevels.findIndex(
-        stock => stock.item_id === action.payload.item_id && stock.location_id === action.payload.location_id
+        stock => stock.item_id === action.payload.item_id && 
+                 stock.location_id === action.payload.location_id
       );
       if (existingIndex >= 0) {
         return {
@@ -126,12 +121,13 @@ function inventoryReducer(state, action) {
           )
         };
       } else {
-        return { ...state, stockLevels: [...state.stockLevels, action.payload] };
+        return {
+          ...state,
+          stockLevels: [...state.stockLevels, action.payload]
+        };
       }
-
     case 'ADD_TRANSACTION':
       return { ...state, transactions: [...state.transactions, action.payload] };
-
     default:
       return state;
   }
@@ -147,7 +143,7 @@ export function InventoryProvider({ children }) {
     try {
       console.log("📍 Loading existing locations from database...");
       dispatch({ type: 'CLEAR_ERROR' });
-
+      
       const { data, error } = await supabase
         .from('locations_fyngan_2024')
         .select('*')
@@ -171,6 +167,7 @@ export function InventoryProvider({ children }) {
   const loadCategories = async () => {
     try {
       console.log("📁 Loading existing categories from database...");
+      
       const { data, error } = await supabase
         .from('categories_fyngan_2024')
         .select('*')
@@ -194,6 +191,7 @@ export function InventoryProvider({ children }) {
   const loadSuppliers = async () => {
     try {
       console.log("🚛 Loading existing suppliers from database...");
+      
       const { data, error } = await supabase
         .from('suppliers_fyngan_2024')
         .select('*')
@@ -217,6 +215,7 @@ export function InventoryProvider({ children }) {
   const loadItems = async () => {
     try {
       console.log("📦 Loading existing items from database...");
+      
       const { data, error } = await supabase
         .from('items_fyngan_2024')
         .select(`
@@ -244,6 +243,7 @@ export function InventoryProvider({ children }) {
   const loadStockLevels = async () => {
     try {
       console.log("📊 Loading existing stock levels from database...");
+      
       const { data, error } = await supabase
         .from('stock_levels_fyngan_2024')
         .select(`
@@ -271,6 +271,7 @@ export function InventoryProvider({ children }) {
   const loadTransactions = async () => {
     try {
       console.log("📋 Loading existing transactions from database...");
+      
       const { data, error } = await supabase
         .from('transactions_fyngan_2024')
         .select('*')
@@ -373,69 +374,114 @@ export function InventoryProvider({ children }) {
   // CRUD operations
   const addLocation = async (locationData) => {
     try {
+      console.log('📍 Adding location:', locationData);
+      
       const { data, error } = await supabase
         .from('locations_fyngan_2024')
-        .insert([locationData])
+        .insert([{
+          ...locationData,
+          is_default: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error adding location:', error);
+        throw error;
+      }
 
+      console.log('✅ Location added successfully:', data);
       dispatch({ type: 'ADD_LOCATION', payload: data });
+      
       await logTransaction('LOCATION_ADDED', {
         locationId: data.id,
         locationName: data.name,
         address: data.address,
         type: data.type
       });
+
       return data;
     } catch (error) {
-      console.error('Error adding location:', error);
+      console.error('💥 Error adding location:', error);
       throw error;
     }
   };
 
   const updateLocation = async (id, locationData) => {
     try {
+      console.log('📍 Updating location:', id, locationData);
+      
       const { data, error } = await supabase
         .from('locations_fyngan_2024')
-        .update(locationData)
+        .update({
+          ...locationData,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', id)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error updating location:', error);
+        throw error;
+      }
 
+      console.log('✅ Location updated successfully:', data);
       dispatch({ type: 'UPDATE_LOCATION', payload: data });
+      
       await logTransaction('LOCATION_UPDATED', {
         locationId: data.id,
         locationName: data.name,
         changes: locationData
       });
+
       return data;
     } catch (error) {
-      console.error('Error updating location:', error);
+      console.error('💥 Error updating location:', error);
       throw error;
     }
   };
 
   const deleteLocation = async (id) => {
     try {
+      console.log('📍 Deleting location:', id);
       const location = state.locations.find(loc => loc.id === id);
+      
+      // First delete all stock levels for this location
+      console.log('🗑️ Deleting stock levels for location:', id);
+      const { error: stockError } = await supabase
+        .from('stock_levels_fyngan_2024')
+        .delete()
+        .eq('location_id', id);
+        
+      if (stockError) {
+        console.error('⚠️ Error deleting stock levels:', stockError);
+        // Continue anyway - the location deletion is more important
+      }
+      
+      // Then delete the location
+      console.log('🗑️ Deleting location record:', id);
       const { error } = await supabase
         .from('locations_fyngan_2024')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error deleting location:', error);
+        throw error;
+      }
 
+      console.log('✅ Location deleted successfully:', id);
       dispatch({ type: 'DELETE_LOCATION', payload: id });
+      
       await logTransaction('LOCATION_DELETED', {
         locationId: id,
         locationName: location?.name || 'Unknown Location'
       });
     } catch (error) {
-      console.error('Error deleting location:', error);
+      console.error('💥 Error deleting location:', error);
       throw error;
     }
   };
@@ -451,11 +497,13 @@ export function InventoryProvider({ children }) {
       if (error) throw error;
 
       dispatch({ type: 'ADD_CATEGORY', payload: data });
+      
       await logTransaction('CATEGORY_ADDED', {
         categoryId: data.id,
         categoryName: data.name,
         description: data.description
       });
+
       return data;
     } catch (error) {
       console.error('Error adding category:', error);
@@ -475,11 +523,13 @@ export function InventoryProvider({ children }) {
       if (error) throw error;
 
       dispatch({ type: 'UPDATE_CATEGORY', payload: data });
+      
       await logTransaction('CATEGORY_UPDATED', {
         categoryId: data.id,
         categoryName: data.name,
         changes: categoryData
       });
+
       return data;
     } catch (error) {
       console.error('Error updating category:', error);
@@ -490,6 +540,7 @@ export function InventoryProvider({ children }) {
   const deleteCategory = async (id) => {
     try {
       const category = state.categories.find(cat => cat.id === id);
+      
       const { error } = await supabase
         .from('categories_fyngan_2024')
         .delete()
@@ -498,6 +549,7 @@ export function InventoryProvider({ children }) {
       if (error) throw error;
 
       dispatch({ type: 'DELETE_CATEGORY', payload: id });
+      
       await logTransaction('CATEGORY_DELETED', {
         categoryId: id,
         categoryName: category?.name || 'Unknown Category'
@@ -519,6 +571,7 @@ export function InventoryProvider({ children }) {
       if (error) throw error;
 
       dispatch({ type: 'ADD_SUPPLIER', payload: data });
+      
       await logTransaction('SUPPLIER_ADDED', {
         supplierId: data.id,
         supplierName: data.name,
@@ -526,6 +579,7 @@ export function InventoryProvider({ children }) {
         email: data.email,
         phone: data.phone
       });
+
       return data;
     } catch (error) {
       console.error('Error adding supplier:', error);
@@ -545,11 +599,13 @@ export function InventoryProvider({ children }) {
       if (error) throw error;
 
       dispatch({ type: 'UPDATE_SUPPLIER', payload: data });
+      
       await logTransaction('SUPPLIER_UPDATED', {
         supplierId: data.id,
         supplierName: data.name,
         changes: supplierData
       });
+
       return data;
     } catch (error) {
       console.error('Error updating supplier:', error);
@@ -560,6 +616,7 @@ export function InventoryProvider({ children }) {
   const deleteSupplier = async (id) => {
     try {
       const supplier = state.suppliers.find(sup => sup.id === id);
+      
       const { error } = await supabase
         .from('suppliers_fyngan_2024')
         .delete()
@@ -568,6 +625,7 @@ export function InventoryProvider({ children }) {
       if (error) throw error;
 
       dispatch({ type: 'DELETE_SUPPLIER', payload: id });
+      
       await logTransaction('SUPPLIER_DELETED', {
         supplierId: id,
         supplierName: supplier?.name || 'Unknown Supplier'
@@ -593,6 +651,7 @@ export function InventoryProvider({ children }) {
       if (error) throw error;
 
       dispatch({ type: 'ADD_ITEM', payload: data });
+      
       await logTransaction('ITEM_ADDED', {
         itemId: data.id,
         itemName: data.name,
@@ -602,6 +661,7 @@ export function InventoryProvider({ children }) {
         minStock: data.min_stock,
         maxStock: data.max_stock
       });
+
       return data;
     } catch (error) {
       console.error('Error adding item:', error);
@@ -625,6 +685,7 @@ export function InventoryProvider({ children }) {
       if (error) throw error;
 
       dispatch({ type: 'UPDATE_ITEM', payload: data });
+      
       await logTransaction('ITEM_UPDATED', {
         itemId: data.id,
         itemName: data.name,
@@ -632,6 +693,7 @@ export function InventoryProvider({ children }) {
         supplierName: data.supplier?.name || 'Unknown Supplier',
         changes: itemData
       });
+
       return data;
     } catch (error) {
       console.error('Error updating item:', error);
@@ -642,6 +704,7 @@ export function InventoryProvider({ children }) {
   const deleteItem = async (id) => {
     try {
       const item = state.items.find(item => item.id === id);
+      
       const { error } = await supabase
         .from('items_fyngan_2024')
         .delete()
@@ -650,6 +713,7 @@ export function InventoryProvider({ children }) {
       if (error) throw error;
 
       dispatch({ type: 'DELETE_ITEM', payload: id });
+      
       await logTransaction('ITEM_DELETED', {
         itemId: id,
         itemName: item?.name || 'Unknown Item'

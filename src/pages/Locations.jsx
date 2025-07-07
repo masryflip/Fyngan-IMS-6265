@@ -7,8 +7,9 @@ import SafeIcon from '../common/SafeIcon';
 import supabase from '../lib/supabase';
 
 const { 
-  FiPlus, FiEdit2, FiTrash2, FiMapPin, FiRefreshCw, FiRotateCcw, FiDatabase,
-  FiSettings, FiStore, FiPackage, FiBriefcase, FiSun, FiHome, FiTruck, FiCoffee, FiGrid
+  FiPlus, FiEdit2, FiTrash2, FiMapPin, FiRefreshCw, FiRotateCcw, 
+  FiDatabase, FiSettings, FiStore, FiPackage, FiBriefcase, FiSun, 
+  FiHome, FiTruck, FiCoffee, FiGrid 
 } = FiIcons;
 
 // Icon mapping for location types
@@ -26,7 +27,10 @@ const ICON_MAP = {
 };
 
 export default function Locations() {
-  const { locations, isLoading, error, addLocation, updateLocation, deleteLocation, refreshAllData } = useInventory();
+  const { 
+    locations, isLoading, error, addLocation, updateLocation, deleteLocation, refreshAllData 
+  } = useInventory();
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState(null);
   const [formData, setFormData] = useState({
@@ -38,6 +42,7 @@ export default function Locations() {
   const [refreshing, setRefreshing] = useState(false);
   const [locationTypes, setLocationTypes] = useState([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
+  const [formError, setFormError] = useState(null);
 
   // Load location types
   useEffect(() => {
@@ -76,25 +81,44 @@ export default function Locations() {
     }
   };
 
-  // Debug info
-  useEffect(() => {
-    console.log('🔍 Locations Page Debug Info:', {
-      locationsCount: locations?.length || 0,
-      locations: locations,
-      isLoading,
-      error
-    });
-  }, [locations, isLoading, error]);
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    setFormError(null);
 
     try {
+      // Validate form data
+      if (!formData.name?.trim()) {
+        throw new Error('Location name is required');
+      }
+      if (!formData.address?.trim()) {
+        throw new Error('Description is required');
+      }
+      if (!formData.type) {
+        throw new Error('Location type is required');
+      }
+
+      // Check if type exists in our location types
+      const typeExists = locationTypes.find(type => type.name === formData.type);
+      if (!typeExists) {
+        throw new Error(`Location type "${formData.type}" does not exist. Please refresh the page and try again.`);
+      }
+
+      const locationData = {
+        name: formData.name.trim(),
+        address: formData.address.trim(),
+        type: formData.type,
+        is_default: false // Ensure new locations are not default
+      };
+
+      console.log('Submitting location data:', locationData);
+
       if (editingLocation) {
-        await updateLocation(editingLocation.id, formData);
+        console.log('Updating location:', editingLocation.id, locationData);
+        await updateLocation(editingLocation.id, locationData);
       } else {
-        await addLocation(formData);
+        console.log('Adding new location:', locationData);
+        await addLocation(locationData);
       }
 
       setIsModalOpen(false);
@@ -102,30 +126,51 @@ export default function Locations() {
       setFormData({ name: '', address: '', type: '' });
     } catch (error) {
       console.error('Error saving location:', error);
-      alert('Error saving location. Please try again.');
+      setFormError(error.message || 'An error occurred while saving the location');
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleEdit = (location) => {
+    console.log('Editing location:', location);
     setEditingLocation(location);
     setFormData({
-      name: location.name,
-      address: location.address,
-      type: location.type
+      name: location.name || '',
+      address: location.address || '',
+      type: location.type || ''
     });
     setIsModalOpen(true);
+    setFormError(null);
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this location? This will also delete all stock data for this location.')) {
-      try {
-        await deleteLocation(id);
-      } catch (error) {
-        console.error('Error deleting location:', error);
-        alert('Error deleting location. Please try again.');
+    try {
+      // Check if location has stock data
+      const { data: stockData, error: stockError } = await supabase
+        .from('stock_levels_fyngan_2024')
+        .select('id, item:items_fyngan_2024(name)')
+        .eq('location_id', id);
+
+      if (stockError) {
+        console.error('Error checking stock data:', stockError);
       }
+
+      const hasStock = stockData && stockData.length > 0;
+      
+      let confirmMessage = 'Are you sure you want to delete this location?';
+      if (hasStock) {
+        confirmMessage = `This location has ${stockData.length} stock record(s) associated with it. Deleting it will also delete all stock data for this location. Are you sure you want to continue?`;
+      }
+
+      if (window.confirm(confirmMessage)) {
+        console.log('Deleting location:', id);
+        await deleteLocation(id);
+        console.log('Location deleted successfully');
+      }
+    } catch (error) {
+      console.error('Error deleting location:', error);
+      alert(`Error deleting location: ${error.message}`);
     }
   };
 
@@ -221,7 +266,7 @@ export default function Locations() {
           {/* Debug info in development */}
           {process.env.NODE_ENV === 'development' && (
             <div className="mt-2 text-xs text-gray-500">
-              Debug: {locations?.length || 0} locations loaded
+              Debug: {locations?.length || 0} locations loaded, {locationTypes?.length || 0} location types
             </div>
           )}
         </div>
@@ -242,7 +287,12 @@ export default function Locations() {
             <span>{refreshing ? 'Refreshing...' : 'Refresh from DB'}</span>
           </button>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setIsModalOpen(true);
+              setFormError(null);
+              setEditingLocation(null);
+              setFormData({ name: '', address: '', type: '' });
+            }}
             className="flex items-center space-x-2 bg-coffee-600 text-white px-4 py-2 rounded-md hover:bg-coffee-700 transition-colors"
           >
             <SafeIcon icon={FiPlus} />
@@ -259,15 +309,19 @@ export default function Locations() {
               {locations === null ? 'Loading locations...' : 'No locations found'}
             </h3>
             <p className="text-gray-500 mb-4">
-              {locations === null
-                ? 'Fetching data from your database...'
-                : 'Your database appears to be empty. Add your first location to get started.'
-              }
+              {locations === null 
+                ? 'Fetching data from your database...' 
+                : 'Your database appears to be empty. Add your first location to get started.'}
             </p>
             {locations !== null && (
               <div className="flex justify-center space-x-3">
                 <button
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => {
+                    setIsModalOpen(true);
+                    setFormError(null);
+                    setEditingLocation(null);
+                    setFormData({ name: '', address: '', type: '' });
+                  }}
                   className="bg-coffee-600 text-white px-4 py-2 rounded-md hover:bg-coffee-700"
                 >
                   Add First Location
@@ -314,8 +368,13 @@ export default function Locations() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <SafeIcon icon={typeConfig.icon} className="text-coffee-600 mr-3" />
-                          <div className="text-sm font-medium text-gray-900">
-                            {location.name}
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {location.name}
+                            </div>
+                            {location.is_default && (
+                              <div className="text-xs text-gray-500">Default Location</div>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -333,12 +392,14 @@ export default function Locations() {
                           <button
                             onClick={() => handleEdit(location)}
                             className="text-coffee-600 hover:text-coffee-900 p-1"
+                            title="Edit location"
                           >
                             <SafeIcon icon={FiEdit2} />
                           </button>
                           <button
                             onClick={() => handleDelete(location.id)}
                             className="text-red-600 hover:text-red-900 p-1"
+                            title="Delete location"
                           >
                             <SafeIcon icon={FiTrash2} />
                           </button>
@@ -359,13 +420,21 @@ export default function Locations() {
           setIsModalOpen(false);
           setEditingLocation(null);
           setFormData({ name: '', address: '', type: '' });
+          setFormError(null);
         }}
         title={editingLocation ? 'Edit Location' : 'Add New Location'}
       >
+        {formError && (
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+            <div className="font-medium">Error:</div>
+            {formError}
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Location Name
+              Location Name *
             </label>
             <input
               type="text"
@@ -379,7 +448,7 @@ export default function Locations() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
+              Description *
             </label>
             <input
               type="text"
@@ -393,12 +462,15 @@ export default function Locations() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Location Type
+              Location Type *
             </label>
             <select
               required
               value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              onChange={(e) => {
+                console.log('Selected type:', e.target.value);
+                setFormData({ ...formData, type: e.target.value });
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-coffee-500"
             >
               <option value="">Select a location type...</option>
@@ -408,10 +480,28 @@ export default function Locations() {
                 </option>
               ))}
             </select>
+            {locationTypes.length === 0 && (
+              <p className="mt-1 text-xs text-red-500">
+                No location types found. Please add location types first.
+              </p>
+            )}
             <p className="mt-1 text-xs text-gray-500">
-              Don't see the type you need? <a href="#/location-types" className="text-coffee-600 hover:text-coffee-800">Manage location types</a>
+              Don't see the type you need?{' '}
+              <a href="#/location-types" className="text-coffee-600 hover:text-coffee-800">
+                Manage location types
+              </a>
             </p>
           </div>
+
+          {/* Debug info in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="p-3 bg-gray-100 rounded text-xs">
+              <div><strong>Debug Info:</strong></div>
+              <div>Form Data: {JSON.stringify(formData)}</div>
+              <div>Available Types: {locationTypes.map(t => t.name).join(', ')}</div>
+              <div>Editing: {editingLocation ? editingLocation.id : 'new'}</div>
+            </div>
+          )}
 
           <div className="flex justify-end space-x-3 pt-4">
             <button
@@ -420,6 +510,7 @@ export default function Locations() {
                 setIsModalOpen(false);
                 setEditingLocation(null);
                 setFormData({ name: '', address: '', type: '' });
+                setFormError(null);
               }}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             >
@@ -427,7 +518,7 @@ export default function Locations() {
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || locationTypes.length === 0}
               className="px-4 py-2 text-sm font-medium text-white bg-coffee-600 rounded-md hover:bg-coffee-700 transition-colors disabled:opacity-50"
             >
               {submitting ? 'Saving...' : editingLocation ? 'Update' : 'Add'} Location
