@@ -6,10 +6,7 @@ import StockLevelIndicator from '../components/StockLevelIndicator';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
 
-const {
-  FiPlus, FiEdit2, FiTrash2, FiPackage, FiRefreshCw, FiMapPin, FiGrid,
-  FiCheckSquare, FiSquare, FiSettings, FiCopy, FiTarget
-} = FiIcons;
+const { FiPlus, FiEdit2, FiTrash2, FiPackage, FiRefreshCw, FiMapPin, FiGrid, FiCheckSquare, FiSquare, FiSettings, FiCopy, FiTarget } = FiIcons;
 
 // Common units for coffee shop inventory
 const UNIT_OPTIONS = [
@@ -36,11 +33,7 @@ const UNIT_OPTIONS = [
 ];
 
 export default function Items() {
-  const {
-    items, categories, suppliers, locations, stockLevels, isLoading,
-    addItem, updateItem, deleteItem, getTotalStock, formatQuantity, updateStockLevel
-  } = useInventory();
-
+  const { items, categories, suppliers, locations, stockLevels, isLoading, addItem, updateItem, deleteItem, getTotalStock, formatQuantity, updateStockLevel } = useInventory();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -55,28 +48,60 @@ export default function Items() {
     assigned_locations: []
   });
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
   const [viewMode, setViewMode] = useState('all'); // 'all', 'by-location'
   const [selectedLocationFilter, setSelectedLocationFilter] = useState('all');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    setFormError('');
 
     try {
+      // Validate form data
+      if (!formData.name?.trim()) {
+        throw new Error('Item name is required');
+      }
+      if (!formData.category_id) {
+        throw new Error('Category is required');
+      }
+      if (!formData.supplier_id) {
+        throw new Error('Supplier is required');
+      }
+      if (!formData.unit) {
+        throw new Error('Unit is required');
+      }
+      if (!formData.min_stock || parseFloat(formData.min_stock) < 0) {
+        throw new Error('Valid minimum stock is required');
+      }
+      if (!formData.max_stock || parseFloat(formData.max_stock) < 0) {
+        throw new Error('Valid maximum stock is required');
+      }
+      if (parseFloat(formData.min_stock) >= parseFloat(formData.max_stock)) {
+        throw new Error('Maximum stock must be greater than minimum stock');
+      }
+
       const itemData = {
-        ...formData,
+        name: formData.name.trim(),
+        category_id: formData.category_id,
+        supplier_id: formData.supplier_id,
+        unit: formData.unit,
         min_stock: parseFloat(formData.min_stock),
         max_stock: parseFloat(formData.max_stock)
       };
 
+      console.log('Submitting item data:', itemData);
+
       let savedItem;
       if (editingItem) {
+        console.log('Updating item:', editingItem.id, itemData);
         savedItem = await updateItem(editingItem.id, itemData);
       } else {
+        console.log('Adding new item:', itemData);
         savedItem = await addItem(itemData);
       }
 
-      // Initialize stock levels for assigned locations
+      // Initialize stock levels for assigned locations if this is a new item or locations changed
       if (formData.assigned_locations.length > 0) {
         await Promise.all(
           formData.assigned_locations.map(locationId =>
@@ -96,31 +121,43 @@ export default function Items() {
         max_stock: '',
         assigned_locations: []
       });
+      setFormError('');
+      
+      console.log('Item saved successfully');
     } catch (error) {
       console.error('Error saving item:', error);
-      alert('Error saving item. Please try again.');
+      const errorMessage = error.message || 'An unexpected error occurred while saving the item';
+      setFormError(errorMessage);
+      
+      // Don't use alert, show error in the form instead
+      console.error('Item save error details:', {
+        error: error,
+        formData: formData,
+        editingItem: editingItem
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleEdit = (item) => {
+    console.log('Editing item:', item);
     setEditingItem(item);
-    
     // Get locations where this item has stock
     const assignedLocations = stockLevels
       .filter(stock => stock.item_id === item.id)
       .map(stock => stock.location_id);
 
     setFormData({
-      name: item.name,
-      category_id: item.category_id,
-      supplier_id: item.supplier_id,
-      unit: item.unit,
-      min_stock: item.min_stock.toString(),
-      max_stock: item.max_stock.toString(),
+      name: item.name || '',
+      category_id: item.category_id || '',
+      supplier_id: item.supplier_id || '',
+      unit: item.unit || '',
+      min_stock: item.min_stock?.toString() || '',
+      max_stock: item.max_stock?.toString() || '',
       assigned_locations: assignedLocations
     });
+    setFormError('');
     setIsModalOpen(true);
   };
 
@@ -140,7 +177,7 @@ export default function Items() {
     const assignedLocations = stockLevels
       .filter(stock => stock.item_id === item.id)
       .map(stock => stock.location_id);
-    
+
     setFormData(prev => ({
       ...prev,
       assigned_locations: assignedLocations
@@ -222,7 +259,7 @@ export default function Items() {
   const itemsWithStock = items.map(item => {
     const itemLocations = getItemLocations(item.id);
     const totalStock = getTotalStock(item.id);
-    
+
     return {
       ...item,
       currentStock: totalStock,
@@ -237,9 +274,9 @@ export default function Items() {
   });
 
   // Filter items by location
-  const filteredItems = selectedLocationFilter === 'all' 
-    ? itemsWithStock 
-    : itemsWithStock.filter(item => 
+  const filteredItems = selectedLocationFilter === 'all'
+    ? itemsWithStock
+    : itemsWithStock.filter(item =>
         item.assignedLocations.some(loc => loc.id === selectedLocationFilter)
       );
 
@@ -264,7 +301,20 @@ export default function Items() {
           <p className="text-gray-600">Manage your inventory items with location assignments and real-time stock levels</p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setIsModalOpen(true);
+            setFormError('');
+            setEditingItem(null);
+            setFormData({
+              name: '',
+              category_id: '',
+              supplier_id: '',
+              unit: '',
+              min_stock: '',
+              max_stock: '',
+              assigned_locations: []
+            });
+          }}
           className="flex items-center space-x-2 bg-coffee-600 text-white px-4 py-2 rounded-md hover:bg-coffee-700 transition-colors"
         >
           <SafeIcon icon={FiPlus} />
@@ -294,7 +344,6 @@ export default function Items() {
               </select>
             </div>
           </div>
-
           <div className="text-sm text-gray-600">
             Showing {filteredItems.length} of {itemsWithStock.length} items
           </div>
@@ -306,10 +355,9 @@ export default function Items() {
           <div className="p-8 text-center">
             <SafeIcon icon={FiPackage} className="text-gray-400 text-4xl mb-4 mx-auto" />
             <p className="text-gray-500">
-              {selectedLocationFilter === 'all' 
+              {selectedLocationFilter === 'all'
                 ? 'No items found. Add your first item to get started.'
-                : 'No items assigned to this location.'
-              }
+                : 'No items assigned to this location.'}
             </p>
           </div>
         ) : (
@@ -457,13 +505,21 @@ export default function Items() {
             max_stock: '',
             assigned_locations: []
           });
+          setFormError('');
         }}
         title={editingItem ? 'Edit Item' : 'Add New Item'}
       >
+        {formError && (
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+            <div className="font-medium">Error:</div>
+            {formError}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Item Name
+              Item Name *
             </label>
             <input
               type="text"
@@ -477,7 +533,7 @@ export default function Items() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Category
+              Category *
             </label>
             <select
               required
@@ -496,7 +552,7 @@ export default function Items() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Supplier
+              Supplier *
             </label>
             <select
               required
@@ -515,7 +571,7 @@ export default function Items() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Unit of Measurement
+              Unit of Measurement *
             </label>
             <select
               required
@@ -562,7 +618,7 @@ export default function Items() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Minimum Stock
+                Minimum Stock *
               </label>
               <input
                 type="number"
@@ -577,7 +633,7 @@ export default function Items() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Maximum Stock
+                Maximum Stock *
               </label>
               <input
                 type="number"
@@ -607,6 +663,7 @@ export default function Items() {
                   max_stock: '',
                   assigned_locations: []
                 });
+                setFormError('');
               }}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             >
@@ -648,7 +705,10 @@ export default function Items() {
               );
 
               return (
-                <div key={location.id} className={`p-3 border rounded-lg ${isAssigned ? 'border-coffee-200 bg-coffee-50' : 'border-gray-200'}`}>
+                <div
+                  key={location.id}
+                  className={`p-3 border rounded-lg ${isAssigned ? 'border-coffee-200 bg-coffee-50' : 'border-gray-200'}`}
+                >
                   <label className="flex items-center justify-between cursor-pointer">
                     <div className="flex items-center space-x-3">
                       <button
@@ -666,7 +726,6 @@ export default function Items() {
                         <div className="text-xs text-gray-500">{location.address}</div>
                       </div>
                     </div>
-                    
                     {currentStock && (
                       <div className="text-right">
                         <div className="text-sm font-medium text-gray-900">
