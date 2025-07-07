@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = 'https://iprjfyzeklhzkyvgayum.supabase.co'
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwcmpmeXpla2xoemt5dmdheXVtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE4MDc5NjAsImV4cCI6MjA2NzM4Mzk2MH0.Tuu170ztur_obEsA1UXFboqlvKtFIsxP63Rd0wkM6tk'
+const SUPABASE_URL = 'https://mahmfbprgoaqowqqmhlc.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1haG1mYnByZ29hcW93cXFtaGxjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzUxNTU5MTIsImV4cCI6MjA1MDczMTkxMn0.YSfWKLXaUNyONlJCN1pPTjKYJk5_GjDRhPKYLPiOjxI'
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.error('Missing Supabase environment variables')
@@ -31,7 +31,7 @@ supabase
   .limit(1)
   .then(
     result => {
-      console.log('✅ Supabase connected successfully');
+      console.log('✅ Supabase connected successfully to project mahmfbprgoaqowqqmhlc');
       console.log('Database connection test result:', result);
     },
     error => {

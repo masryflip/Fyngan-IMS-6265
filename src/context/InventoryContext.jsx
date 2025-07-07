@@ -52,7 +52,7 @@ function inventoryReducer(state, action) {
     case 'UPDATE_LOCATION':
       return {
         ...state,
-        locations: state.locations.map(loc =>
+        locations: state.locations.map(loc => 
           loc.id === action.payload.id ? action.payload : loc
         )
       };
@@ -67,7 +67,7 @@ function inventoryReducer(state, action) {
     case 'UPDATE_CATEGORY':
       return {
         ...state,
-        categories: state.categories.map(cat =>
+        categories: state.categories.map(cat => 
           cat.id === action.payload.id ? action.payload : cat
         )
       };
@@ -78,7 +78,7 @@ function inventoryReducer(state, action) {
     case 'UPDATE_SUPPLIER':
       return {
         ...state,
-        suppliers: state.suppliers.map(sup =>
+        suppliers: state.suppliers.map(sup => 
           sup.id === action.payload.id ? action.payload : sup
         )
       };
@@ -89,7 +89,7 @@ function inventoryReducer(state, action) {
     case 'UPDATE_ITEM':
       return {
         ...state,
-        items: state.items.map(item =>
+        items: state.items.map(item => 
           item.id === action.payload.id ? action.payload : item
         )
       };
@@ -108,7 +108,7 @@ function inventoryReducer(state, action) {
       if (existingIndex >= 0) {
         return {
           ...state,
-          stockLevels: state.stockLevels.map((stock, index) =>
+          stockLevels: state.stockLevels.map((stock, index) => 
             index === existingIndex ? action.payload : stock
           )
         };
@@ -136,17 +136,13 @@ export function InventoryProvider({ children }) {
         .from('locations_fyngan_2024')
         .select('*')
         .order('created_at', { ascending: true });
-
+      
       if (error) {
         console.error('❌ Error fetching locations:', error);
         throw error;
       }
 
-      console.log("✅ Successfully loaded locations:", {
-        count: data?.length || 0,
-        locations: data || []
-      });
-      
+      console.log("✅ Successfully loaded locations:", { count: data?.length || 0, locations: data || [] });
       dispatch({ type: 'SET_LOCATIONS', payload: data || [] });
       return true;
     } catch (error) {
@@ -164,17 +160,13 @@ export function InventoryProvider({ children }) {
         .from('categories_fyngan_2024')
         .select('*')
         .order('created_at', { ascending: true });
-
+      
       if (error) {
         console.error('❌ Error fetching categories:', error);
         throw error;
       }
 
-      console.log("✅ Successfully loaded categories:", {
-        count: data?.length || 0,
-        categories: data || []
-      });
-      
+      console.log("✅ Successfully loaded categories:", { count: data?.length || 0, categories: data || [] });
       dispatch({ type: 'SET_CATEGORIES', payload: data || [] });
       return true;
     } catch (error) {
@@ -192,17 +184,13 @@ export function InventoryProvider({ children }) {
         .from('suppliers_fyngan_2024')
         .select('*')
         .order('created_at', { ascending: true });
-
+      
       if (error) {
         console.error('❌ Error fetching suppliers:', error);
         throw error;
       }
 
-      console.log("✅ Successfully loaded suppliers:", {
-        count: data?.length || 0,
-        suppliers: data || []
-      });
-      
+      console.log("✅ Successfully loaded suppliers:", { count: data?.length || 0, suppliers: data || [] });
       dispatch({ type: 'SET_SUPPLIERS', payload: data || [] });
       return true;
     } catch (error) {
@@ -224,17 +212,13 @@ export function InventoryProvider({ children }) {
           supplier:suppliers_fyngan_2024(name)
         `)
         .order('created_at', { ascending: true });
-
+      
       if (error) {
         console.error('❌ Error fetching items:', error);
         throw error;
       }
 
-      console.log("✅ Successfully loaded items:", {
-        count: data?.length || 0,
-        items: data || []
-      });
-      
+      console.log("✅ Successfully loaded items:", { count: data?.length || 0, items: data || [] });
       dispatch({ type: 'SET_ITEMS', payload: data || [] });
       return true;
     } catch (error) {
@@ -252,21 +236,17 @@ export function InventoryProvider({ children }) {
         .from('stock_levels_fyngan_2024')
         .select(`
           *,
-          item:items_fyngan_2024(name, unit),
+          item:items_fyngan_2024(name,unit),
           location:locations_fyngan_2024(name)
         `)
         .order('last_updated', { ascending: false });
-
+      
       if (error) {
         console.error('❌ Error fetching stock levels:', error);
         throw error;
       }
 
-      console.log("✅ Successfully loaded stock levels:", {
-        count: data?.length || 0,
-        stockLevels: data || []
-      });
-      
+      console.log("✅ Successfully loaded stock levels:", { count: data?.length || 0, stockLevels: data || [] });
       dispatch({ type: 'SET_STOCK_LEVELS', payload: data || [] });
       return true;
     } catch (error) {
@@ -285,7 +265,7 @@ export function InventoryProvider({ children }) {
         .select('*')
         .order('timestamp', { ascending: false })
         .limit(1000);
-
+      
       if (error) {
         if (error.message && error.message.includes('does not exist')) {
           console.log('⚠️ Transactions table does not exist yet - this is normal for new setups');
@@ -295,10 +275,7 @@ export function InventoryProvider({ children }) {
         throw error;
       }
 
-      console.log("✅ Successfully loaded transactions:", {
-        count: data?.length || 0
-      });
-      
+      console.log("✅ Successfully loaded transactions:", { count: data?.length || 0 });
       dispatch({ type: 'SET_TRANSACTIONS', payload: data || [] });
       return true;
     } catch (error) {
@@ -348,7 +325,7 @@ export function InventoryProvider({ children }) {
       console.log("🚀 APP STARTUP: Loading all existing data from database...");
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'CLEAR_ERROR' });
-
+      
       try {
         // Load data in sequence to ensure dependencies
         console.log("📋 Loading sequence: locations → categories → suppliers → items → stock → transactions");
@@ -356,7 +333,7 @@ export function InventoryProvider({ children }) {
         const locationsLoaded = await loadLocations();
         const categoriesLoaded = await loadCategories();
         const suppliersLoaded = await loadSuppliers();
-
+        
         if (locationsLoaded && categoriesLoaded && suppliersLoaded) {
           await loadItems();
           await loadStockLevels();
@@ -364,7 +341,7 @@ export function InventoryProvider({ children }) {
         } else {
           throw new Error('Failed to load basic data tables');
         }
-
+        
         dispatch({ type: 'SET_INITIALIZED', payload: true });
         console.log("🎉 App initialization completed successfully!");
       } catch (error) {
@@ -374,7 +351,7 @@ export function InventoryProvider({ children }) {
         dispatch({ type: 'SET_LOADING', payload: false });
       }
     };
-
+    
     loadAllData();
   }, []);
 
@@ -386,10 +363,11 @@ export function InventoryProvider({ children }) {
         .insert([locationData])
         .select()
         .single();
-
+      
       if (error) throw error;
-
+      
       dispatch({ type: 'ADD_LOCATION', payload: data });
+      
       await logTransaction('LOCATION_ADDED', {
         locationId: data.id,
         locationName: data.name,
@@ -412,10 +390,11 @@ export function InventoryProvider({ children }) {
         .eq('id', id)
         .select()
         .single();
-
+      
       if (error) throw error;
-
+      
       dispatch({ type: 'UPDATE_LOCATION', payload: data });
+      
       await logTransaction('LOCATION_UPDATED', {
         locationId: data.id,
         locationName: data.name,
@@ -437,10 +416,11 @@ export function InventoryProvider({ children }) {
         .from('locations_fyngan_2024')
         .delete()
         .eq('id', id);
-
+      
       if (error) throw error;
-
+      
       dispatch({ type: 'DELETE_LOCATION', payload: id });
+      
       await logTransaction('LOCATION_DELETED', {
         locationId: id,
         locationName: location?.name || 'Unknown Location'
@@ -458,10 +438,11 @@ export function InventoryProvider({ children }) {
         .insert([categoryData])
         .select()
         .single();
-
+      
       if (error) throw error;
-
+      
       dispatch({ type: 'ADD_CATEGORY', payload: data });
+      
       await logTransaction('CATEGORY_ADDED', {
         categoryId: data.id,
         categoryName: data.name,
@@ -483,10 +464,11 @@ export function InventoryProvider({ children }) {
         .eq('id', id)
         .select()
         .single();
-
+      
       if (error) throw error;
-
+      
       dispatch({ type: 'UPDATE_CATEGORY', payload: data });
+      
       await logTransaction('CATEGORY_UPDATED', {
         categoryId: data.id,
         categoryName: data.name,
@@ -508,10 +490,11 @@ export function InventoryProvider({ children }) {
         .from('categories_fyngan_2024')
         .delete()
         .eq('id', id);
-
+      
       if (error) throw error;
-
+      
       dispatch({ type: 'DELETE_CATEGORY', payload: id });
+      
       await logTransaction('CATEGORY_DELETED', {
         categoryId: id,
         categoryName: category?.name || 'Unknown Category'
@@ -529,10 +512,11 @@ export function InventoryProvider({ children }) {
         .insert([supplierData])
         .select()
         .single();
-
+      
       if (error) throw error;
-
+      
       dispatch({ type: 'ADD_SUPPLIER', payload: data });
+      
       await logTransaction('SUPPLIER_ADDED', {
         supplierId: data.id,
         supplierName: data.name,
@@ -556,10 +540,11 @@ export function InventoryProvider({ children }) {
         .eq('id', id)
         .select()
         .single();
-
+      
       if (error) throw error;
-
+      
       dispatch({ type: 'UPDATE_SUPPLIER', payload: data });
+      
       await logTransaction('SUPPLIER_UPDATED', {
         supplierId: data.id,
         supplierName: data.name,
@@ -581,10 +566,11 @@ export function InventoryProvider({ children }) {
         .from('suppliers_fyngan_2024')
         .delete()
         .eq('id', id);
-
+      
       if (error) throw error;
-
+      
       dispatch({ type: 'DELETE_SUPPLIER', payload: id });
+      
       await logTransaction('SUPPLIER_DELETED', {
         supplierId: id,
         supplierName: supplier?.name || 'Unknown Supplier'
@@ -606,10 +592,11 @@ export function InventoryProvider({ children }) {
           supplier:suppliers_fyngan_2024(name)
         `)
         .single();
-
+      
       if (error) throw error;
-
+      
       dispatch({ type: 'ADD_ITEM', payload: data });
+      
       await logTransaction('ITEM_ADDED', {
         itemId: data.id,
         itemName: data.name,
@@ -639,10 +626,11 @@ export function InventoryProvider({ children }) {
           supplier:suppliers_fyngan_2024(name)
         `)
         .single();
-
+      
       if (error) throw error;
-
+      
       dispatch({ type: 'UPDATE_ITEM', payload: data });
+      
       await logTransaction('ITEM_UPDATED', {
         itemId: data.id,
         itemName: data.name,
@@ -666,10 +654,11 @@ export function InventoryProvider({ children }) {
         .from('items_fyngan_2024')
         .delete()
         .eq('id', id);
-
+      
       if (error) throw error;
-
+      
       dispatch({ type: 'DELETE_ITEM', payload: id });
+      
       await logTransaction('ITEM_DELETED', {
         itemId: id,
         itemName: item?.name || 'Unknown Item'
@@ -684,14 +673,14 @@ export function InventoryProvider({ children }) {
     try {
       const item = state.items.find(i => i.id === itemId);
       const location = state.locations.find(l => l.id === locationId);
-
+      
       // Get previous quantity
       const existingStock = state.stockLevels.find(
         stock => stock.item_id === itemId && stock.location_id === locationId
       );
       const previousQuantity = existingStock ? existingStock.quantity : 0;
       const quantityChange = quantity - previousQuantity;
-
+      
       const { data, error } = await supabase
         .from('stock_levels_fyngan_2024')
         .upsert(
@@ -705,15 +694,15 @@ export function InventoryProvider({ children }) {
         )
         .select(`
           *,
-          item:items_fyngan_2024(name, unit),
+          item:items_fyngan_2024(name,unit),
           location:locations_fyngan_2024(name)
         `)
         .single();
-
+      
       if (error) throw error;
-
+      
       dispatch({ type: 'UPDATE_STOCK_LEVEL', payload: data });
-
+      
       // Log transaction
       await logTransaction('STOCK_UPDATED', {
         itemId: itemId,
@@ -726,7 +715,7 @@ export function InventoryProvider({ children }) {
         unit: item?.unit || 'unit',
         type: quantityChange > 0 ? 'STOCK_IN' : quantityChange < 0 ? 'STOCK_OUT' : 'STOCK_ADJUSTMENT'
       });
-
+      
       return data;
     } catch (error) {
       console.error('Error updating stock level:', error);
@@ -743,13 +732,13 @@ export function InventoryProvider({ children }) {
         details,
         user_name: 'System'
       };
-
+      
       const { data, error } = await supabase
         .from('transactions_fyngan_2024')
         .insert([transaction])
         .select()
         .single();
-
+      
       if (error) {
         if (error.message && error.message.includes('does not exist')) {
           console.log('⚠️ Transactions table does not exist yet, skipping transaction logging');
@@ -757,7 +746,7 @@ export function InventoryProvider({ children }) {
         }
         throw error;
       }
-
+      
       dispatch({ type: 'ADD_TRANSACTION', payload: data });
       return data;
     } catch (error) {
@@ -774,7 +763,7 @@ export function InventoryProvider({ children }) {
       const totalStock = state.stockLevels
         .filter(stock => stock.item_id === item.id)
         .reduce((sum, stock) => sum + parseFloat(stock.quantity || 0), 0);
-
+        
       if (totalStock <= parseFloat(item.min_stock || 0)) {
         alerts.push({
           id: `${item.id}-low`,
@@ -786,7 +775,7 @@ export function InventoryProvider({ children }) {
         });
       }
     });
-
+    
     return alerts;
   };
 
@@ -812,7 +801,6 @@ export function InventoryProvider({ children }) {
   const value = {
     ...state,
     dispatch,
-    
     // CRUD operations
     addLocation,
     updateLocation,
@@ -827,14 +815,12 @@ export function InventoryProvider({ children }) {
     updateItem,
     deleteItem,
     updateStockLevel,
-    
     // Utility functions
     getStockAlerts,
     getLocationStock,
     getItemStock,
     getTotalStock,
     formatQuantity,
-    
     // Refresh functions
     loadLocations,
     loadCategories,
