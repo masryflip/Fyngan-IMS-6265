@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import AuthGuard from './components/AuthGuard';
 import Dashboard from './pages/Dashboard';
 import Locations from './pages/Locations';
+import LocationTypes from './pages/LocationTypes';
 import Categories from './pages/Categories';
 import Items from './pages/Items';
 import Suppliers from './pages/Suppliers';
@@ -72,6 +73,7 @@ function AppContent() {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/locations" element={<Locations />} />
+              <Route path="/location-types" element={<LocationTypes />} />
               <Route path="/categories" element={<Categories />} />
               <Route path="/items" element={<Items />} />
               <Route path="/suppliers" element={<Suppliers />} />

@@ -4,29 +4,77 @@ import { useInventory } from '../context/InventoryContext';
 import Modal from '../components/Modal';
 import * as FiIcons from 'react-icons/fi';
 import SafeIcon from '../common/SafeIcon';
+import supabase from '../lib/supabase';
 
-const { FiPlus, FiEdit2, FiTrash2, FiMapPin, FiRefreshCw, FiRotateCcw, FiDatabase } = FiIcons;
+const { 
+  FiPlus, FiEdit2, FiTrash2, FiMapPin, FiRefreshCw, FiRotateCcw, FiDatabase,
+  FiSettings, FiStore, FiPackage, FiBriefcase, FiSun, FiHome, FiTruck, FiCoffee, FiGrid
+} = FiIcons;
+
+// Icon mapping for location types
+const ICON_MAP = {
+  'map-pin': FiMapPin,
+  'store': FiStore,
+  'package': FiPackage,
+  'briefcase': FiBriefcase,
+  'sun': FiSun,
+  'home': FiHome,
+  'truck': FiTruck,
+  'coffee': FiCoffee,
+  'grid': FiGrid,
+  'settings': FiSettings
+};
 
 export default function Locations() {
-  const { 
-    locations, 
-    isLoading, 
-    error,
-    addLocation, 
-    updateLocation, 
-    deleteLocation,
-    refreshAllData 
-  } = useInventory();
-  
+  const { locations, isLoading, error, addLocation, updateLocation, deleteLocation, refreshAllData } = useInventory();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState(null);
-  const [formData, setFormData] = useState({ 
-    name: '', 
-    address: '', 
-    type: 'retail' 
+  const [formData, setFormData] = useState({
+    name: '',
+    address: '',
+    type: ''
   });
   const [submitting, setSubmitting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [locationTypes, setLocationTypes] = useState([]);
+  const [loadingTypes, setLoadingTypes] = useState(true);
+
+  // Load location types
+  useEffect(() => {
+    loadLocationTypes();
+  }, []);
+
+  const loadLocationTypes = async () => {
+    try {
+      setLoadingTypes(true);
+      const { data, error } = await supabase
+        .from('location_types_fyngan_2024')
+        .select('*')
+        .order('is_default', { ascending: false })
+        .order('name');
+
+      if (error) {
+        console.error('Error loading location types:', error);
+        // Fallback to default types
+        setLocationTypes([
+          { name: 'retail', description: 'Customer-facing areas', color: 'blue', icon: 'store' },
+          { name: 'storage', description: 'Storage areas', color: 'green', icon: 'package' },
+          { name: 'production', description: 'Production areas', color: 'purple', icon: 'settings' }
+        ]);
+      } else {
+        setLocationTypes(data || []);
+      }
+    } catch (error) {
+      console.error('Error loading location types:', error);
+      setLocationTypes([
+        { name: 'retail', description: 'Customer-facing areas', color: 'blue', icon: 'store' },
+        { name: 'storage', description: 'Storage areas', color: 'green', icon: 'package' },
+        { name: 'production', description: 'Production areas', color: 'purple', icon: 'settings' }
+      ]);
+    } finally {
+      setLoadingTypes(false);
+    }
+  };
 
   // Debug info
   useEffect(() => {
@@ -51,7 +99,7 @@ export default function Locations() {
 
       setIsModalOpen(false);
       setEditingLocation(null);
-      setFormData({ name: '', address: '', type: 'retail' });
+      setFormData({ name: '', address: '', type: '' });
     } catch (error) {
       console.error('Error saving location:', error);
       alert('Error saving location. Please try again.');
@@ -86,6 +134,7 @@ export default function Locations() {
     try {
       console.log('🔄 Manual refresh triggered by user');
       await refreshAllData();
+      await loadLocationTypes(); // Also refresh location types
       console.log('✅ Manual refresh completed');
     } catch (error) {
       console.error('💥 Error during manual refresh:', error);
@@ -95,10 +144,37 @@ export default function Locations() {
     }
   };
 
-  const locationTypes = {
-    retail: { label: 'Retail', color: 'bg-blue-100 text-blue-800' },
-    storage: { label: 'Storage', color: 'bg-green-100 text-green-800' },
-    production: { label: 'Production', color: 'bg-purple-100 text-purple-800' }
+  const getLocationTypeConfig = (typeName) => {
+    const type = locationTypes.find(t => t.name === typeName);
+    if (type) {
+      return {
+        label: type.name.charAt(0).toUpperCase() + type.name.slice(1),
+        color: getColorClass(type.color),
+        icon: ICON_MAP[type.icon] || FiMapPin,
+        description: type.description
+      };
+    }
+    // Fallback for unknown types
+    return {
+      label: typeName || 'Unknown',
+      color: 'bg-gray-100 text-gray-800',
+      icon: FiMapPin,
+      description: 'Unknown location type'
+    };
+  };
+
+  const getColorClass = (colorName) => {
+    const colorMap = {
+      'blue': 'bg-blue-100 text-blue-800',
+      'green': 'bg-green-100 text-green-800',
+      'purple': 'bg-purple-100 text-purple-800',
+      'red': 'bg-red-100 text-red-800',
+      'yellow': 'bg-yellow-100 text-yellow-800',
+      'gray': 'bg-gray-100 text-gray-800',
+      'indigo': 'bg-indigo-100 text-indigo-800',
+      'pink': 'bg-pink-100 text-pink-800'
+    };
+    return colorMap[colorName] || 'bg-gray-100 text-gray-800';
   };
 
   // Show error state
@@ -123,7 +199,7 @@ export default function Locations() {
   }
 
   // Show loading state
-  if (isLoading) {
+  if (isLoading || loadingTypes) {
     return (
       <div className="p-6">
         <div className="flex items-center justify-center h-64">
@@ -150,6 +226,13 @@ export default function Locations() {
           )}
         </div>
         <div className="flex space-x-3">
+          <a
+            href="#/location-types"
+            className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors"
+          >
+            <SafeIcon icon={FiSettings} />
+            <span>Manage Types</span>
+          </a>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
@@ -176,7 +259,7 @@ export default function Locations() {
               {locations === null ? 'Loading locations...' : 'No locations found'}
             </h3>
             <p className="text-gray-500 mb-4">
-              {locations === null 
+              {locations === null
                 ? 'Fetching data from your database...'
                 : 'Your database appears to be empty. Add your first location to get started.'
               }
@@ -218,52 +301,52 @@ export default function Locations() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {locations.map((location, index) => (
-                  <motion.tr
-                    key={location.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="hover:bg-gray-50"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <SafeIcon icon={FiMapPin} className="text-coffee-600 mr-3" />
-                        <div className="text-sm font-medium text-gray-900">
-                          {location.name}
+                {locations.map((location, index) => {
+                  const typeConfig = getLocationTypeConfig(location.type);
+                  return (
+                    <motion.tr
+                      key={location.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="hover:bg-gray-50"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <SafeIcon icon={typeConfig.icon} className="text-coffee-600 mr-3" />
+                          <div className="text-sm font-medium text-gray-900">
+                            {location.name}
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{location.address}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          locationTypes[location.type]?.color || 'bg-gray-100 text-gray-800'
-                        }`}
-                      >
-                        {locationTypes[location.type]?.label || location.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
-                        <button
-                          onClick={() => handleEdit(location)}
-                          className="text-coffee-600 hover:text-coffee-900 p-1"
-                        >
-                          <SafeIcon icon={FiEdit2} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(location.id)}
-                          className="text-red-600 hover:text-red-900 p-1"
-                        >
-                          <SafeIcon icon={FiTrash2} />
-                        </button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">{location.address}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${typeConfig.color}`}>
+                          <SafeIcon icon={typeConfig.icon} className="mr-1 text-xs" />
+                          {typeConfig.label}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end space-x-2">
+                          <button
+                            onClick={() => handleEdit(location)}
+                            className="text-coffee-600 hover:text-coffee-900 p-1"
+                          >
+                            <SafeIcon icon={FiEdit2} />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(location.id)}
+                            className="text-red-600 hover:text-red-900 p-1"
+                          >
+                            <SafeIcon icon={FiTrash2} />
+                          </button>
+                        </div>
+                      </td>
+                    </motion.tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -275,7 +358,7 @@ export default function Locations() {
         onClose={() => {
           setIsModalOpen(false);
           setEditingLocation(null);
-          setFormData({ name: '', address: '', type: 'retail' });
+          setFormData({ name: '', address: '', type: '' });
         }}
         title={editingLocation ? 'Edit Location' : 'Add New Location'}
       >
@@ -313,14 +396,21 @@ export default function Locations() {
               Location Type
             </label>
             <select
+              required
               value={formData.type}
               onChange={(e) => setFormData({ ...formData, type: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-coffee-500"
             >
-              <option value="retail">Retail (Customer-facing)</option>
-              <option value="storage">Storage (Inventory storage)</option>
-              <option value="production">Production (Food prep/kitchen)</option>
+              <option value="">Select a location type...</option>
+              {locationTypes.map((type) => (
+                <option key={type.name} value={type.name}>
+                  {type.name.charAt(0).toUpperCase() + type.name.slice(1)} - {type.description}
+                </option>
+              ))}
             </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Don't see the type you need? <a href="#/location-types" className="text-coffee-600 hover:text-coffee-800">Manage location types</a>
+            </p>
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">
@@ -329,7 +419,7 @@ export default function Locations() {
               onClick={() => {
                 setIsModalOpen(false);
                 setEditingLocation(null);
-                setFormData({ name: '', address: '', type: 'retail' });
+                setFormData({ name: '', address: '', type: '' });
               }}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             >

@@ -7,7 +7,7 @@ import SafeIcon from '../common/SafeIcon';
 
 const {
   FiHome, FiMapPin, FiGrid, FiPackage, FiTruck, FiEdit3, FiAlertTriangle,
-  FiMenu, FiX, FiFileText, FiBarChart3, FiUsers, FiLogOut, FiShield
+  FiMenu, FiX, FiFileText, FiBarChart3, FiUsers, FiLogOut, FiShield, FiSettings
 } = FiIcons;
 
 const menuItems = [
@@ -15,6 +15,7 @@ const menuItems = [
   { path: '/stock-entry', icon: FiEdit3, label: 'Stock Entry' },
   { path: '/stock-analysis', icon: FiBarChart3, label: 'Stock Analysis' },
   { path: '/locations', icon: FiMapPin, label: 'Locations' },
+  { path: '/location-types', icon: FiSettings, label: 'Location Types', adminOnly: true },
   { path: '/categories', icon: FiGrid, label: 'Categories' },
   { path: '/items', icon: FiPackage, label: 'Items' },
   { path: '/suppliers', icon: FiTruck, label: 'Suppliers' },
